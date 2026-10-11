@@ -70,7 +70,7 @@ def create_question(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> QuestionRead:
-    require_course_question_manager(current_user and db, course_id, current_user)
+    require_course_question_manager(db, course_id, current_user)
     ensure_question_manager(current_user)
     ensure_topic_belongs_to_course(db, course_id, payload.topic_id)
 
