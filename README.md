@@ -6,7 +6,7 @@ The pilot is intentionally small: one instructor, one course, and a feedback loo
 
 ## Current phase
 
-**Phase 2 — Authentication and roles.** This repository now includes the API scaffold, a first users migration, student registration, email/password login, short-lived JWT access tokens, and server-side role checks. Quiz/course functionality is not implemented yet.
+**Phase 3 — Courses and question bank.** The repository includes student registration/login, course creation, join-code enrollment, instructor-owned topics, and a single-choice question bank classified by topic, difficulty, and status.
 
 ## Technology
 
@@ -26,39 +26,47 @@ Requirements: Docker Desktop with Docker Compose.
 1. Copy the environment template:
    - macOS/Linux: `cp .env.example .env`
    - Windows PowerShell: `Copy-Item .env.example .env`
-2. Start the services: `docker compose up --build`
+2. Start services: `docker compose up --build`
 3. Frontend: [http://localhost:3000](http://localhost:3000)
-4. Health endpoint: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
+4. API health: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 5. API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-The backend container runs `alembic upgrade head` on startup for local development. To stop the services, press `Ctrl+C`, then run `docker compose down`. Add `-v` only when you intend to delete local PostgreSQL data.
+For local development, the backend container applies Alembic migrations at startup. Stop services with `docker compose down`. Add `-v` only when you intend to delete the local PostgreSQL data volume.
 
-## Authentication API
+## Create an instructor account
+
+Public registration can only create student accounts. Create instructor/admin accounts only from a trusted terminal after the backend is running:
+
+```bash
+docker compose exec backend python -m app.cli create-privileged-user --role instructor --email instructor@example.edu --full-name "Course Instructor"
+```
+
+The command prompts for the password twice without echoing it. This command is a local/trusted-operator tool, not an API endpoint.
+
+## Main API routes
 
 All routes use the `/api/v1` prefix.
 
-| Method | Route | Purpose |
+| Method | Route | Access |
 |---|---|---|
-| POST | `/auth/register` | Create a student account |
-| POST | `/auth/login` | Exchange credentials for a bearer token |
-| GET | `/auth/me` | Return the current authenticated account |
-| GET | `/health` | Check that the API process responds |
+| POST | `/auth/register` | Public; creates student |
+| POST | `/auth/login` | Public |
+| GET | `/auth/me` | Authenticated |
+| POST | `/courses` | Instructor |
+| GET | `/courses` | Own courses / enrolled courses / admin list |
+| GET, PATCH | `/courses/{id}` | Course owner, enrolled student (GET), or admin |
+| POST | `/courses/enroll` | Student with a join code |
+| GET | `/courses/{id}/students` | Course instructor or admin |
+| GET, POST | `/courses/{id}/topics` | Course participants (GET); instructor/admin (POST) |
+| PATCH, DELETE | `/courses/{id}/topics/{topic_id}` | Instructor/admin; topics with questions cannot be deleted |
+| GET, POST | `/courses/{id}/questions` | Instructor/admin |
+| GET, PATCH, DELETE | `/courses/{id}/questions/{question_id}` | Instructor/admin |
 
-Example registration body:
-
-```json
-{
-  "email": "student@example.edu",
-  "full_name": "Example Student",
-  "password": "a-long-unique-password"
-}
-```
-
-Registration always assigns the `student` role; additional role fields are rejected. Instructor and admin accounts must be provisioned through a trusted administrative workflow, which will be added in a later phase. For `/auth/me`, send the token from the login response in the `Authorization: Bearer <token>` header.
+Question-bank items are single-choice multiple-choice questions with 2–6 options and exactly one correct option. Options and answer keys are currently restricted to course instructors/admins; students will receive assessment-safe question views in the quiz phase.
 
 ## Run checks
 
-Backend checks (Python 3.12+):
+Backend (Python 3.12+):
 
 ```bash
 cd backend
@@ -67,10 +75,11 @@ python -m venv .venv
 # macOS/Linux: source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ruff check app tests alembic
+alembic upgrade head --sql
 pytest
 ```
 
-Frontend checks (Node.js 24 LTS or another compatible supported release):
+Frontend (Node.js 24 LTS or another compatible supported release):
 
 ```bash
 cd frontend
@@ -80,19 +89,6 @@ npm run typecheck
 npm run build
 ```
 
-## Project map
+## Important security boundary
 
-- `backend/app/api/`: API routes and authentication/authorization dependencies
-- `backend/app/models/`: SQLAlchemy data models
-- `backend/app/schemas/`: request and response validation
-- `backend/alembic/versions/`: versioned database migrations
-- `backend/tests/`: backend tests
-- `frontend/`: Next.js application
-- `docs/ARCHITECTURE.md`: system boundaries and data flow
-- `docs/adr/`: architecture decisions
-
-## Security boundaries
-
-JWT secret and database credentials in the example configuration are local-only. Replace them with managed secrets before deployment. Production mode rejects the example JWT key. Passwords are never stored in plaintext or returned in API responses. Access tokens are short-lived; refresh tokens, email verification, password reset, rate limiting, account administration, and production security review are not yet implemented.
-
-Do not use this scaffold to store real student data until those controls and the institution's privacy requirements have been reviewed.
+Local credentials in `.env.example` are not production secrets. Production needs managed secrets, TLS, backups, rate limiting, account recovery/verification, security review, and a suitable student-data privacy policy. The current scaffold is not ready for real student data.
