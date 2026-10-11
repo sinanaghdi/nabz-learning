@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.assessments import router as assessments_router
 from app.api.auth import router as auth_router
 from app.api.courses import router as courses_router
 from app.api.questions import router as questions_router
@@ -16,3 +17,4 @@ def health_check() -> dict[str, str]:
 api_router.include_router(auth_router)
 api_router.include_router(courses_router)
 api_router.include_router(questions_router)
+api_router.include_router(assessments_router)

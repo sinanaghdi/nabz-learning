@@ -1,79 +1,58 @@
 # Nabz Learning — Architecture Overview
 
-**Status:** Phase 3  
+**Status:** Phase 4 — assessments and attempts  
 **Architecture style:** Modular monolith  
-**Pilot:** One instructor, one course, a small student cohort
+**Pilot:** One instructor, one course, and a small student cohort
 
 ## Product loop
 
 1. An instructor creates a course and shares its enrollment code.
-2. Students join using the code.
-3. The instructor organizes content into topics.
-4. The instructor creates topic-linked practice questions.
-5. A later phase will assemble those questions into quizzes and return topic-level learning signals.
-
-## System context
-
-```mermaid
-flowchart TD
-    Student[Student browser]
-    Instructor[Instructor browser]
-    Web[Next.js RTL web app]
-    API[FastAPI API]
-    Auth[JWT authentication and role checks]
-    Domain[Courses / Enrollment / Topics / Questions]
-    DB[(PostgreSQL)]
-    Student --> Web
-    Instructor --> Web
-    Web --> API
-    API --> Auth
-    Auth --> Domain
-    Domain --> DB
-    Migrations[Alembic migrations] --> DB
-```
+2. Students enroll using the code.
+3. The instructor organizes course topics and publishes single-choice questions.
+4. The instructor assembles and publishes an assessment.
+5. Enrolled students start an attempt, save answers, and submit.
+6. The API grades objective questions and persists the result.
+7. Phase 5 will aggregate results by learning topic for the instructor.
 
 ## Modules
 
-- `frontend/`: Next.js App Router, TypeScript, Persian-first RTL presentation.
-- `backend/app/api/auth.py`: registration, login, current-account endpoint.
-- `backend/app/api/courses.py`: course management, enrollment, roster, and topics.
-- `backend/app/api/questions.py`: course-scoped question-bank CRUD.
-- `backend/app/api/course_access.py`: reusable ownership and enrollment checks.
-- `backend/app/core/`: settings, JWT and password hashing.
-- `backend/app/models/`: SQLAlchemy domain models.
-- `backend/app/schemas/`: validated request and response schemas.
-- `backend/app/cli.py`: trusted-terminal provisioning for instructor/admin accounts.
-- `backend/alembic/versions/`: database migrations.
+- \`frontend/\`: Next.js App Router, TypeScript, Persian-first RTL presentation.
+- \`backend/app/api/auth.py\`: registration, login and current account.
+- \`backend/app/api/courses.py\`: courses, enrollments, roster and topics.
+- \`backend/app/api/questions.py\`: course-scoped question-bank CRUD.
+- \`backend/app/api/assessments.py\`: assessment lifecycle, safe question delivery, attempts and scoring.
+- \`backend/app/api/course_access.py\`: reusable course ownership and enrollment checks.
+- \`backend/app/models/\`: SQLAlchemy domain models.
+- \`backend/app/schemas/\`: explicit request/response DTOs.
+- \`backend/alembic/versions/\`: versioned database migrations.
+- \`backend/tests/\`: isolated API tests.
+- \`docs/adr/\`: architecture decisions.
 
-## Ownership and authorization
+## Authorization and answer-key protection
 
-- Public registration creates student accounts only.
-- Instructor accounts must be provisioned by a trusted operator using `python -m app.cli create-privileged-user`.
-- An instructor can manage only their own courses; administrators can manage all courses.
-- A student can view only courses in which they are enrolled.
-- Enrollment requires a valid code for an active course; duplicate enrollment is rejected.
-- Students cannot call the question-bank endpoints or receive answer keys from them.
-- Single-choice questions require 2–6 options and exactly one marked correct option.
+- Public registration only creates student accounts.
+- Only the course owner or an administrator can author, edit or publish assessments.
+- Students must be enrolled to see published assessments and start attempts.
+- Students never receive option correctness flags or question explanations in assessment responses.
+- Students may only read, answer and submit their own attempt.
+- Selected options must belong to the answered question, and the question must belong to that assessment.
+- An assessment can only be published if it contains at least one question.
+- Only draft assessments can be edited; a submitted attempt cannot be submitted twice.
 
 ## Data model
 
-- `users`: account, hash, role and active status.
-- `courses`: instructor owner, title, term, description, active status and unique enrollment code.
-- `enrollments`: course/student join table with a unique pair constraint.
-- `course_topics`: course-specific learning topics, ordered by the instructor.
-- `questions`: topic, prompt, explanation, difficulty and lifecycle status.
-- `question_options`: options, position and answer key.
+- \`users\`, \`courses\`, \`enrollments\`, \`course_topics\`, \`questions\`, \`question_options\`
+- \`assessments\`: course, title, status, duration and attempt limit.
+- \`assessment_questions\`: ordered association to published questions from the same course.
+- \`quiz_attempts\`: student, attempt number, lifecycle state and score.
+- \`attempt_answers\`: one replaceable selected option per question per attempt.
 
-Migration `20261011_0002` adds course and question-bank tables after the users migration. Published questions are not directly exposed to students; quiz endpoints must later expose safe question DTOs without answer keys.
+Migration \`20261011_0003\` adds the assessment, attempt and answer tables after course/question-bank migrations.
 
-## API conventions
+## Current limitations
 
-- All product routes use `/api/v1`.
-- Health endpoint: `GET /api/v1/health`.
-- Interactive API documentation: `/docs` in local development.
-- Validate all input at the API boundary and enforce authorization in backend dependencies/service helpers, never solely in the frontend.
-- Keep schemas explicit so answer keys cannot leak into student-facing payloads by accidental ORM serialization.
+The UI dashboards have not yet been built; endpoints are available through local OpenAPI docs. Current scoring is objective single-choice auto-grading. The course pilot assumes instructors do not edit published question content after using it in a published assessment; question snapshots/versioning is a future hardening item. Max-attempt enforcement is suitable for a small pilot but must be reviewed for concurrent requests before high-volume use.
 
 ## Deferred
 
-Quiz assembly, attempts, answer submissions, grading, topic-level learning analytics, email verification, password reset, token refresh, rate limits, audit records, institution SSO, and production privacy/security review are not implemented in this phase.
+Topic-level analytics, instructor reporting, manual grading, randomized questions/options, question versioning/snapshots, opening/closing schedules, email verification, password reset, token refresh, rate limits, production privacy/security review, and user-facing RTL screens remain future work.
