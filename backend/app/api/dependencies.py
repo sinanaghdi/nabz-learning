@@ -26,7 +26,7 @@ def get_current_user(
 
     try:
         claims = decode_access_token(credentials.credentials)
-    except jwt.PyJWTError:
+    except jwt.InvalidTokenError:
         raise unauthorized from None
 
     subject = claims.get("sub")
