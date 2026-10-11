@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import app.models.user  # noqa: F401 — registers model metadata for Alembic
 from app.core.config import settings
 from app.db.base import Base
 
