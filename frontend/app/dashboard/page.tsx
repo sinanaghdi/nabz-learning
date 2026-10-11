@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
 
 import {
@@ -114,6 +115,7 @@ function MetricCard({
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -168,8 +170,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const savedToken = window.localStorage.getItem("nabz_access_token");
     if (!savedToken) {
-      window.location.replace("/login");
-      setAuthLoading(false);
+      router.replace("/login");
       return;
     }
     setToken(savedToken);
@@ -181,10 +182,10 @@ export default function DashboardPage() {
       .catch(() => {
         window.localStorage.removeItem("nabz_access_token");
         window.localStorage.removeItem("nabz_user");
-        window.location.replace("/login");
+        router.replace("/login");
       })
       .finally(() => setAuthLoading(false));
-  }, []);
+  }, [router]);
 
   const loadCourses = useCallback(async (accessToken: string) => {
     const result = await apiRequest<Course[]>("/courses", accessToken);
@@ -199,8 +200,11 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!token || !user) return;
     let ignore = false;
-    setWorkspaceLoading(true);
-    apiRequest<Course[]>("/courses", token)
+    Promise.resolve()
+      .then(() => {
+        if (!ignore) setWorkspaceLoading(true);
+        return apiRequest<Course[]>("/courses", token);
+      })
       .then((result) => {
         if (ignore) return;
         setCourses(result);
@@ -219,18 +223,8 @@ export default function DashboardPage() {
   }, [token, user]);
 
   useEffect(() => {
-    if (!token || !user || !courseId) {
-      setTopics([]);
-      setQuestions([]);
-      setAssessments([]);
-      setOverview(null);
-      setTopicAnalytics([]);
-      setStudentSummaries([]);
-      setRoster([]);
-      return;
-    }
+    if (!token || !user || !courseId) return;
     let ignore = false;
-    setContentLoading(true);
     const base = "/courses/" + courseId;
     const coreRequests = [
       apiRequest<Topic[]>(base + "/topics", token),
@@ -245,7 +239,11 @@ export default function DashboardPage() {
           apiRequest<StudentSummary[]>(base + "/analytics/students", token),
         ]
       : [];
-    Promise.all([...coreRequests, ...additionalRequests])
+    Promise.resolve()
+      .then(() => {
+        if (!ignore) setContentLoading(true);
+        return Promise.all([...coreRequests, ...additionalRequests]);
+      })
       .then((data) => {
         if (ignore) return;
         setTopics(data[0] as Topic[]);
@@ -282,7 +280,7 @@ export default function DashboardPage() {
   function signOut() {
     localStorage.removeItem("nabz_access_token");
     localStorage.removeItem("nabz_user");
-    window.location.assign("/login");
+    router.replace("/login");
   }
 
   async function createCourse(event: FormEvent<HTMLFormElement>) {

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 import { apiRequest } from "../../lib/api";
 
@@ -28,7 +30,7 @@ export default function RegisterPage() {
         body: JSON.stringify({ email, password }),
       });
       localStorage.setItem("nabz_access_token", result.access_token);
-      window.location.assign("/dashboard");
+      router.replace("/dashboard");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "ثبت‌نام انجام نشد.");
     } finally {

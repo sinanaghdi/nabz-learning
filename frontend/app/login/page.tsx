@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 import { apiRequest, type User } from "../../lib/api";
 
@@ -25,7 +27,7 @@ export default function LoginPage() {
       localStorage.setItem("nabz_access_token", result.access_token);
       const user = await apiRequest<User>("/auth/me", result.access_token);
       localStorage.setItem("nabz_user", JSON.stringify(user));
-      window.location.assign("/dashboard");
+      router.replace("/dashboard");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "ورود انجام نشد.");
     } finally {
