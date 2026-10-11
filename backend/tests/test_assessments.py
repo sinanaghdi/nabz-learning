@@ -219,3 +219,53 @@ def test_assessment_rejects_question_from_another_course(context) -> None:
         json={"title": "Invalid assessment", "question_ids": [1]},
     )
     assert response.status_code == 422
+
+
+
+def test_draft_assessment_can_replace_its_question_list(context) -> None:
+    client, test_session = context
+    instructor_headers = add_user(test_session, "instructor@example.edu", UserRole.INSTRUCTOR)
+    course_id, first_question_id = setup_course_and_question(client, instructor_headers)
+    topic_response = client.post(
+        f"/api/v1/courses/{course_id}/topics",
+        headers=instructor_headers,
+        json={"title": "IP addressing"},
+    )
+    assert topic_response.status_code == 201, topic_response.text
+    second_question = client.post(
+        f"/api/v1/courses/{course_id}/questions",
+        headers=instructor_headers,
+        json={
+            "topic_id": topic_response.json()["id"],
+            "prompt": "Which protocol assigns IP addresses dynamically?",
+            "status": "published",
+            "options": [
+                {"text": "DHCP", "is_correct": True},
+                {"text": "FTP", "is_correct": False},
+            ],
+        },
+    )
+    assert second_question.status_code == 201, second_question.text
+    second_question_id = second_question.json()["id"]
+
+    created = client.post(
+        f"/api/v1/courses/{course_id}/assessments",
+        headers=instructor_headers,
+        json={"title": "Editable draft", "question_ids": [first_question_id]},
+    )
+    assert created.status_code == 201, created.text
+    assessment_id = created.json()["id"]
+    updated = client.patch(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}",
+        headers=instructor_headers,
+        json={"question_ids": [second_question_id]},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["question_count"] == 1
+
+    detail = client.get(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}",
+        headers=instructor_headers,
+    )
+    assert detail.status_code == 200, detail.text
+    assert [item["id"] for item in detail.json()["questions"]] == [second_question_id]

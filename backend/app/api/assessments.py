@@ -263,9 +263,20 @@ def update_assessment(
     question_ids = changes.pop("question_ids", None)
     if question_ids is not None:
         get_question_bank_items(db, course_id, question_ids)
-        assessment.question_links.clear()
-        assessment.question_links.extend(
-            AssessmentQuestion(question_id=question_id, position=position)
+        old_links = db.scalars(
+            select(AssessmentQuestion).where(
+                AssessmentQuestion.assessment_id == assessment.id
+            )
+        ).all()
+        for link in old_links:
+            db.delete(link)
+        db.flush()
+        db.add_all(
+            AssessmentQuestion(
+                assessment_id=assessment.id,
+                question_id=question_id,
+                position=position,
+            )
             for position, question_id in enumerate(question_ids)
         )
     for field, value in changes.items():
