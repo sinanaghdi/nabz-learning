@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const steps = [
   { number: "۰۱", title: "تمرین هدفمند", description: "تمرین‌های کوتاه و مرتبط با مباحث یک درس، با تمرکز بر یادگیری واقعی." },
   { number: "۰۲", title: "بازخورد روشن", description: "دانشجو متوجه می‌شود کدام مبحث را بهتر است دوباره مرور کند." },
@@ -8,9 +10,9 @@ export default function HomePage() {
   return (
     <main className="page-shell">
       <header className="site-header">
-        <a className="brand" href="/" aria-label="نبض یادگیری، صفحه اصلی">
+        <Link className="brand" href="/" aria-label="نبض یادگیری، صفحه اصلی">
           <span className="brand-mark" aria-hidden="true">ن</span><span>نبض یادگیری</span>
-        </a>
+        </Link>
         <span className="header-note">پروژهٔ آزمایشی برای یادگیری بهتر در دانشگاه</span>
       </header>
       <section className="hero" aria-labelledby="hero-title">
