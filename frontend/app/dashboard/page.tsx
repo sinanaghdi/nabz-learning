@@ -173,9 +173,9 @@ export default function DashboardPage() {
       router.replace("/login");
       return;
     }
-    setToken(savedToken);
     apiRequest<User>("/auth/me", savedToken)
       .then((profile) => {
+        setToken(savedToken);
         setUser(profile);
         window.localStorage.setItem("nabz_user", JSON.stringify(profile));
       })
