@@ -1,71 +1,79 @@
 # Nabz Learning — Architecture Overview
 
-**Status:** Phase 2 foundation  
+**Status:** Phase 3  
 **Architecture style:** Modular monolith  
-**Primary pilot:** One instructor, one university course, a small student cohort
+**Pilot:** One instructor, one course, a small student cohort
 
-## Product boundary
+## Product loop
 
-The first useful product loop is intentionally narrow: an instructor prepares a practice quiz, students complete it, and the instructor gets an understandable summary of difficult topics. Rankings, opportunity matching, AI recommendations, and institution-wide administration are out of scope until the pilot validates the core value.
+1. An instructor creates a course and shares its enrollment code.
+2. Students join using the code.
+3. The instructor organizes content into topics.
+4. The instructor creates topic-linked practice questions.
+5. A later phase will assemble those questions into quizzes and return topic-level learning signals.
 
 ## System context
 
 ```mermaid
 flowchart TD
-    Browser[Student or instructor browser]
-    Web[Next.js web app]
+    Student[Student browser]
+    Instructor[Instructor browser]
+    Web[Next.js RTL web app]
     API[FastAPI API]
-    Auth[Authentication and role dependencies]
+    Auth[JWT authentication and role checks]
+    Domain[Courses / Enrollment / Topics / Questions]
     DB[(PostgreSQL)]
-    Migrations[Alembic migrations]
-    Browser --> Web
-    Web -->|HTTPS / JSON in hosted environments| API
+    Student --> Web
+    Instructor --> Web
+    Web --> API
     API --> Auth
-    Auth --> DB
-    Migrations --> DB
+    Auth --> Domain
+    Domain --> DB
+    Migrations[Alembic migrations] --> DB
 ```
 
-## Main modules
+## Modules
 
 - `frontend/`: Next.js App Router, TypeScript, Persian-first RTL presentation.
-- `backend/app/api/`: versioned HTTP routes, authentication and role dependencies.
-- `backend/app/core/`: settings, JWT issuance/verification, password hashing.
-- `backend/app/models/`: SQLAlchemy persistence models.
-- `backend/app/schemas/`: validated request and response DTOs.
-- `backend/app/db/`: SQLAlchemy base, engine, and session dependency.
-- `backend/alembic/`: migration environment and revisions.
-- `backend/tests/`: backend tests.
-- `docs/adr/`: architecture decision records.
+- `backend/app/api/auth.py`: registration, login, current-account endpoint.
+- `backend/app/api/courses.py`: course management, enrollment, roster, and topics.
+- `backend/app/api/questions.py`: course-scoped question-bank CRUD.
+- `backend/app/api/course_access.py`: reusable ownership and enrollment checks.
+- `backend/app/core/`: settings, JWT and password hashing.
+- `backend/app/models/`: SQLAlchemy domain models.
+- `backend/app/schemas/`: validated request and response schemas.
+- `backend/app/cli.py`: trusted-terminal provisioning for instructor/admin accounts.
+- `backend/alembic/versions/`: database migrations.
+
+## Ownership and authorization
+
+- Public registration creates student accounts only.
+- Instructor accounts must be provisioned by a trusted operator using `python -m app.cli create-privileged-user`.
+- An instructor can manage only their own courses; administrators can manage all courses.
+- A student can view only courses in which they are enrolled.
+- Enrollment requires a valid code for an active course; duplicate enrollment is rejected.
+- Students cannot call the question-bank endpoints or receive answer keys from them.
+- Single-choice questions require 2–6 options and exactly one marked correct option.
+
+## Data model
+
+- `users`: account, hash, role and active status.
+- `courses`: instructor owner, title, term, description, active status and unique enrollment code.
+- `enrollments`: course/student join table with a unique pair constraint.
+- `course_topics`: course-specific learning topics, ordered by the instructor.
+- `questions`: topic, prompt, explanation, difficulty and lifecycle status.
+- `question_options`: options, position and answer key.
+
+Migration `20261011_0002` adds course and question-bank tables after the users migration. Published questions are not directly exposed to students; quiz endpoints must later expose safe question DTOs without answer keys.
 
 ## API conventions
 
-- Product API routes start with `/api/v1`.
+- All product routes use `/api/v1`.
 - Health endpoint: `GET /api/v1/health`.
-- Register: `POST /api/v1/auth/register` (student account only).
-- Login: `POST /api/v1/auth/login` (returns a short-lived bearer JWT).
-- Current account: `GET /api/v1/auth/me` (requires a valid bearer token).
-- Local OpenAPI docs: `/docs`.
+- Interactive API documentation: `/docs` in local development.
+- Validate all input at the API boundary and enforce authorization in backend dependencies/service helpers, never solely in the frontend.
+- Keep schemas explicit so answer keys cannot leak into student-facing payloads by accidental ORM serialization.
 
-## Identity and role policy
+## Deferred
 
-The initial role set is `student`, `instructor`, and `admin`. Public registration assigns only `student`; the API rejects extra fields, including a submitted role. Instructor and admin provisioning must be introduced through a trusted workflow rather than self-service role selection.
-
-Passwords are hashed using Argon2 through pwdlib. JWTs are signed with HS256, carry a subject, issuer, issue time and expiry, and have a configurable short lifetime. Protected routes use a shared dependency that resolves the account from the token and rejects invalid or disabled accounts. Route-specific authorization can use `require_roles(...)`.
-
-This is a useful foundation, not a complete production identity service. Refresh tokens, password reset, email verification, login throttling, audit events, and formal admin provisioning are not implemented yet.
-
-## Database
-
-The first Alembic revision creates the `users` table with unique email, password hash, role constraint, active status, and creation timestamp. Docker Compose runs migrations on startup for local development. Production deployment should execute migrations as a controlled release step, not from every application replica.
-
-## Configuration and secrets
-
-Configuration comes from environment variables. `.env.example` documents local-only settings and `.env` is ignored by Git. Production mode rejects the example JWT key. Production still requires managed secrets, restricted network access, TLS, backups, monitoring, and a reviewed data-retention/privacy policy.
-
-## Testing
-
-Tests cover student registration, role-escalation rejection, login, token-protected profile access, duplicate email handling, invalid credentials/tokens, and the reusable role guard. Tests use an isolated in-memory SQLite database rather than a shared database.
-
-## Deferred modules
-
-Courses/enrollments, question bank and topic mapping, quizzes/attempts, grading, and instructor learning-gap reports remain later phases. Keep a modular monolith until the pilot demonstrates a concrete need for service separation.
+Quiz assembly, attempts, answer submissions, grading, topic-level learning analytics, email verification, password reset, token refresh, rate limits, audit records, institution SSO, and production privacy/security review are not implemented in this phase.
