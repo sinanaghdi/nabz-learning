@@ -29,6 +29,23 @@ class CourseUpdate(StrictInputModel):
     term: str | None = Field(default=None, max_length=80)
     is_active: bool | None = None
 
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        title = " ".join(value.split())
+        if len(title) < 2:
+            raise ValueError("Course title must contain at least two characters.")
+        return title
+
+    @field_validator("is_active")
+    @classmethod
+    def is_active_cannot_be_null(cls, value: bool | None) -> bool | None:
+        if value is None:
+            raise ValueError("is_active cannot be null.")
+        return value
+
 
 class CourseRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -77,11 +94,36 @@ class TopicCreate(StrictInputModel):
     description: str | None = Field(default=None, max_length=2000)
     sort_order: int = Field(default=0, ge=0, le=10000)
 
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        title = " ".join(value.split())
+        if len(title) < 2:
+            raise ValueError("Topic title must contain at least two characters.")
+        return title
+
 
 class TopicUpdate(StrictInputModel):
     title: str | None = Field(default=None, min_length=2, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     sort_order: int | None = Field(default=None, ge=0, le=10000)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        title = " ".join(value.split())
+        if len(title) < 2:
+            raise ValueError("Topic title must contain at least two characters.")
+        return title
+
+    @field_validator("sort_order")
+    @classmethod
+    def sort_order_cannot_be_null(cls, value: int | None) -> int | None:
+        if value is None:
+            raise ValueError("sort_order cannot be null.")
+        return value
 
 
 class TopicRead(BaseModel):
