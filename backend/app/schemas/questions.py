@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.course import QuestionDifficulty, QuestionStatus
 
@@ -13,6 +13,14 @@ class QuestionOptionInput(StrictInputModel):
     text: str = Field(min_length=1, max_length=500)
     is_correct: bool = False
 
+    @field_validator("text")
+    @classmethod
+    def normalize_text(cls, value: str) -> str:
+        text = " ".join(value.split())
+        if not text:
+            raise ValueError("Option text cannot be blank.")
+        return text
+
 
 class QuestionCreate(StrictInputModel):
     topic_id: int = Field(gt=0)
@@ -21,6 +29,14 @@ class QuestionCreate(StrictInputModel):
     difficulty: QuestionDifficulty = QuestionDifficulty.MEDIUM
     status: QuestionStatus = QuestionStatus.DRAFT
     options: list[QuestionOptionInput] = Field(min_length=2, max_length=6)
+
+    @field_validator("prompt")
+    @classmethod
+    def normalize_prompt(cls, value: str) -> str:
+        prompt = value.strip()
+        if len(prompt) < 5:
+            raise ValueError("Question prompt must contain at least five characters.")
+        return prompt
 
     @model_validator(mode="after")
     def exactly_one_correct_option(self) -> "QuestionCreate":
@@ -37,8 +53,26 @@ class QuestionUpdate(StrictInputModel):
     status: QuestionStatus | None = None
     options: list[QuestionOptionInput] | None = Field(default=None, min_length=2, max_length=6)
 
+    @field_validator("prompt")
+    @classmethod
+    def normalize_prompt(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        prompt = value.strip()
+        if len(prompt) < 5:
+            raise ValueError("Question prompt must contain at least five characters.")
+        return prompt
+
     @model_validator(mode="after")
     def validate_options_when_provided(self) -> "QuestionUpdate":
+        if self.topic_id is None and "topic_id" in self.model_fields_set:
+            raise ValueError("topic_id cannot be null.")
+        if self.prompt is None and "prompt" in self.model_fields_set:
+            raise ValueError("prompt cannot be null.")
+        if self.difficulty is None and "difficulty" in self.model_fields_set:
+            raise ValueError("difficulty cannot be null.")
+        if self.status is None and "status" in self.model_fields_set:
+            raise ValueError("status cannot be null.")
         if self.options is not None and sum(
             option.is_correct for option in self.options
         ) != 1:
