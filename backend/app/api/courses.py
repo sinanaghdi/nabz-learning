@@ -11,8 +11,8 @@ from app.db.session import get_db
 from app.models.course import Course, CourseTopic, Enrollment, Question
 from app.models.user import User, UserRole
 from app.schemas.courses import (
-    CourseCreatedRead,
     CourseCreate,
+    CourseCreatedRead,
     CourseRead,
     CourseStudentRead,
     CourseUpdate,
@@ -24,6 +24,7 @@ from app.schemas.courses import (
 )
 
 router = APIRouter(tags=["courses"])
+
 
 
 @router.post(
