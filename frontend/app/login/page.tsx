@@ -10,6 +10,7 @@ import { apiRequest, type User } from "../../lib/api";
 type TokenResponse = { access_token: string; token_type: string };
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);

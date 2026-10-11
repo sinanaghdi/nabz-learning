@@ -10,6 +10,7 @@ import { apiRequest } from "../../lib/api";
 type TokenResponse = { access_token: string; token_type: string };
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
