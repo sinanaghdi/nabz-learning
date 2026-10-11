@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import assert_user_has_role
-from app.core.security import verify_password
+from app.core.security import hash_password, verify_password
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
@@ -94,14 +94,14 @@ def test_login_and_authenticated_profile(client: TestClient) -> None:
     assert profile.json()["role"] == "student"
 
 
-def test_password_is_stored_as_a_hash(client: TestClient) -> None:
-    register_student(client)
-    with TestClient(app) as test_client:
-        token_response = test_client.post(
-            "/api/v1/auth/login",
-            json={"email": "student@example.edu", "password": "correct-horse-battery-7"},
-        )
-    assert token_response.status_code == 200
+def test_password_hash_is_one_way_and_verifiable() -> None:
+    password = "correct-horse-battery-7"
+    hashed = hash_password(password)
+
+    assert hashed != password
+    assert hashed.startswith("$argon2")
+    assert verify_password(password, hashed)
+    assert not verify_password("incorrect-password", hashed)
 
 
 def test_duplicate_email_is_rejected(client: TestClient) -> None:
