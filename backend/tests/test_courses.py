@@ -109,7 +109,12 @@ def test_duplicate_enrollment_is_rejected(context) -> None:
     course = create_course(client, instructor_headers)
     payload = {"enrollment_code": course["enrollment_code"]}
 
-    assert client.post("/api/v1/courses/enroll", headers=student_headers, json=payload).status_code == 201
+    first_enrollment = client.post(
+        "/api/v1/courses/enroll",
+        headers=student_headers,
+        json=payload,
+    )
+    assert first_enrollment.status_code == 201
     duplicate = client.post("/api/v1/courses/enroll", headers=student_headers, json=payload)
     assert duplicate.status_code == 409
 
