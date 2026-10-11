@@ -9,6 +9,7 @@ import {
   type Assessment,
   type AssessmentDetail,
   type Attempt,
+  type AttemptDetail,
   type Course,
   type CourseAnalytics,
   type CourseStudent,
@@ -448,15 +449,37 @@ export default function DashboardPage() {
         "/courses/" + courseId + "/assessments/" + assessment.id,
         token,
       );
-      const attempt = await apiRequest<Attempt>(
-        "/courses/" + courseId + "/assessments/" + assessment.id + "/attempts",
+      const activeAttempt = await apiRequest<AttemptDetail | null>(
+        "/courses/" + courseId + "/assessments/" + assessment.id + "/attempts/active",
         token,
-        { method: "POST" },
       );
-      setExam({ assessment: detail, attempt, answers: {} });
+
+      let attempt: Attempt;
+      let answers: Record<string, number> = {};
+      if (activeAttempt) {
+        attempt = activeAttempt;
+        answers = Object.fromEntries(
+          activeAttempt.answers.map((answer) => [
+            String(answer.question_id),
+            answer.selected_option_id,
+          ]),
+        );
+        setFlash({
+          kind: "info",
+          text: "آزمون نیمه‌تمام و پاسخ‌های ذخیره‌شده بازیابی شدند.",
+        });
+      } else {
+        attempt = await apiRequest<Attempt>(
+          "/courses/" + courseId + "/assessments/" + assessment.id + "/attempts",
+          token,
+          { method: "POST" },
+        );
+        setFlash(null);
+      }
+
+      setExam({ assessment: detail, attempt, answers });
       setLastResult(null);
       setActiveNav("assessments");
-      setFlash(null);
     } catch (caught) {
       notify("error", caught instanceof Error ? caught.message : "شروع آزمون ناموفق بود.");
     } finally {
@@ -860,7 +883,7 @@ function AssessmentRow({
       <div className="assessment-badge" aria-hidden="true">☷</div>
       <div className="assessment-main"><div className="assessment-title-line"><h3>{assessment.title}</h3><span className={assessment.status === "published" ? "badge badge-green" : assessment.status === "closed" ? "badge badge-gray" : "badge badge-amber"}>{statusText(assessment.status)}</span></div><p>{assessment.instructions || "بدون توضیحات اضافی"}</p><div className="assessment-meta"><span>▦ {countText(assessment.question_count)} سؤال</span><span>◷ {assessment.duration_minutes ? countText(assessment.duration_minutes) + " دقیقه" : "بدون محدودیت زمانی"}</span>{!student && <span>↻ {countText(assessment.max_attempts)} بار مجاز</span>}</div></div>
       <div className="assessment-actions">
-        {student && assessment.status === "published" && <button className="button button-primary" onClick={onStart} disabled={busy}>شروع آزمون <span aria-hidden="true">←</span></button>}
+        {student && assessment.status === "published" && <button className="button button-primary" onClick={onStart} disabled={busy}>شروع / ادامه آزمون <span aria-hidden="true">←</span></button>}
         {!student && assessment.status === "draft" && <button className="button button-secondary" onClick={onPublish} disabled={busy}>انتشار آزمون</button>}
       </div>
     </article>

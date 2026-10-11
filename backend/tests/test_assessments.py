@@ -269,3 +269,194 @@ def test_draft_assessment_can_replace_its_question_list(context) -> None:
     )
     assert detail.status_code == 200, detail.text
     assert [item["id"] for item in detail.json()["questions"]] == [second_question_id]
+
+
+
+def test_active_attempt_can_be_resumed_without_consuming_another_attempt(context) -> None:
+    client, test_session = context
+    instructor_headers = add_user(test_session, "instructor@example.edu", UserRole.INSTRUCTOR)
+    student_headers = add_user(test_session, "student@example.edu", UserRole.STUDENT)
+    course_id, question_id = setup_course_and_question(client, instructor_headers)
+
+    with test_session() as db:
+        from app.models.course import Course
+
+        code = db.get(Course, course_id).enrollment_code
+    enrolled = client.post(
+        "/api/v1/courses/enroll",
+        headers=student_headers,
+        json={"enrollment_code": code},
+    )
+    assert enrolled.status_code == 201, enrolled.text
+
+    created = client.post(
+        f"/api/v1/courses/{course_id}/assessments",
+        headers=instructor_headers,
+        json={
+            "title": "Resumable quiz",
+            "question_ids": [question_id],
+            "max_attempts": 1,
+        },
+    )
+    assert created.status_code == 201, created.text
+    assessment_id = created.json()["id"]
+    published = client.post(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/publish",
+        headers=instructor_headers,
+    )
+    assert published.status_code == 200, published.text
+
+    detail = client.get(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}",
+        headers=student_headers,
+    )
+    option_id = detail.json()["questions"][0]["options"][0]["id"]
+    started = client.post(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/attempts",
+        headers=student_headers,
+    )
+    assert started.status_code == 201, started.text
+    attempt_id = started.json()["id"]
+
+    saved = client.put(
+        f"/api/v1/attempts/{attempt_id}/answers/{question_id}",
+        headers=student_headers,
+        json={"selected_option_id": option_id},
+    )
+    assert saved.status_code == 200, saved.text
+
+    resumed = client.get(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/attempts/active",
+        headers=student_headers,
+    )
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["id"] == attempt_id
+    assert resumed.json()["status"] == "in_progress"
+    assert resumed.json()["answers"] == [
+        {"question_id": question_id, "selected_option_id": option_id}
+    ]
+
+    repeated_start = client.post(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/attempts",
+        headers=student_headers,
+    )
+    assert repeated_start.status_code == 200, repeated_start.text
+    assert repeated_start.json()["id"] == attempt_id
+
+
+def test_active_attempt_endpoint_is_scoped_to_the_current_student(context) -> None:
+    client, test_session = context
+    instructor_headers = add_user(test_session, "instructor@example.edu", UserRole.INSTRUCTOR)
+    student_headers = add_user(test_session, "student@example.edu", UserRole.STUDENT)
+    other_student_headers = add_user(
+        test_session, "other-student@example.edu", UserRole.STUDENT
+    )
+    course_id, question_id = setup_course_and_question(client, instructor_headers)
+
+    with test_session() as db:
+        from app.models.course import Course
+
+        code = db.get(Course, course_id).enrollment_code
+    for headers in (student_headers, other_student_headers):
+        enrolled = client.post(
+            "/api/v1/courses/enroll",
+            headers=headers,
+            json={"enrollment_code": code},
+        )
+        assert enrolled.status_code == 201, enrolled.text
+
+    created = client.post(
+        f"/api/v1/courses/{course_id}/assessments",
+        headers=instructor_headers,
+        json={"title": "Private attempt", "question_ids": [question_id]},
+    )
+    assert created.status_code == 201, created.text
+    assessment_id = created.json()["id"]
+    published = client.post(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/publish",
+        headers=instructor_headers,
+    )
+    assert published.status_code == 200, published.text
+
+    started = client.post(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/attempts",
+        headers=student_headers,
+    )
+    assert started.status_code == 201, started.text
+
+    hidden_from_other_student = client.get(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/attempts/active",
+        headers=other_student_headers,
+    )
+    assert hidden_from_other_student.status_code == 200
+    assert hidden_from_other_student.json() is None
+
+    cannot_read_other_attempt = client.get(
+        f"/api/v1/attempts/{started.json()['id']}",
+        headers=other_student_headers,
+    )
+    assert cannot_read_other_attempt.status_code == 403
+
+
+def test_answer_rejects_option_from_another_question(context) -> None:
+    client, test_session = context
+    instructor_headers = add_user(test_session, "instructor@example.edu", UserRole.INSTRUCTOR)
+    student_headers = add_user(test_session, "student@example.edu", UserRole.STUDENT)
+    course_id, first_question_id = setup_course_and_question(client, instructor_headers)
+
+    topic = client.get(
+        f"/api/v1/courses/{course_id}/topics",
+        headers=instructor_headers,
+    )
+    assert topic.status_code == 200, topic.text
+    topic_id = topic.json()[0]["id"]
+    second_question = client.post(
+        f"/api/v1/courses/{course_id}/questions",
+        headers=instructor_headers,
+        json={
+            "topic_id": topic_id,
+            "prompt": "Which protocol resolves an IP address to a MAC address?",
+            "status": "published",
+            "options": [
+                {"text": "ARP", "is_correct": True},
+                {"text": "DNS", "is_correct": False},
+            ],
+        },
+    )
+    assert second_question.status_code == 201, second_question.text
+
+    with test_session() as db:
+        from app.models.course import Course
+
+        code = db.get(Course, course_id).enrollment_code
+    enrolled = client.post(
+        "/api/v1/courses/enroll",
+        headers=student_headers,
+        json={"enrollment_code": code},
+    )
+    assert enrolled.status_code == 201, enrolled.text
+
+    created = client.post(
+        f"/api/v1/courses/{course_id}/assessments",
+        headers=instructor_headers,
+        json={"title": "Option ownership", "question_ids": [first_question_id]},
+    )
+    assert created.status_code == 201, created.text
+    assessment_id = created.json()["id"]
+    published = client.post(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/publish",
+        headers=instructor_headers,
+    )
+    assert published.status_code == 200, published.text
+    started = client.post(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/attempts",
+        headers=student_headers,
+    )
+    assert started.status_code == 201, started.text
+
+    invalid_answer = client.put(
+        f"/api/v1/attempts/{started.json()['id']}/answers/{first_question_id}",
+        headers=student_headers,
+        json={"selected_option_id": second_question.json()["options"][0]["id"]},
+    )
+    assert invalid_answer.status_code == 422

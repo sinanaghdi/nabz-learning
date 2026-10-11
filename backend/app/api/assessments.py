@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -320,6 +320,7 @@ def publish_assessment(
 def start_attempt(
     course_id: int,
     assessment_id: int,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> QuizAttemptRead:
@@ -333,6 +334,20 @@ def start_attempt(
     question_count = count_assessment_questions(db, assessment_id)
     if question_count == 0:
         raise HTTPException(status_code=409, detail="This assessment has no questions.")
+
+    # Reuse an unfinished attempt after refresh or an accidental repeated request.
+    active_attempt = db.scalar(
+        select(QuizAttempt)
+        .where(
+            QuizAttempt.assessment_id == assessment_id,
+            QuizAttempt.student_id == current_user.id,
+            QuizAttempt.status == AttemptStatus.IN_PROGRESS.value,
+        )
+        .order_by(QuizAttempt.started_at.desc())
+    )
+    if active_attempt is not None:
+        response.status_code = status.HTTP_200_OK
+        return QuizAttemptRead.model_validate(active_attempt)
 
     previous_attempts = db.scalar(
         select(func.count(QuizAttempt.id)).where(
@@ -358,6 +373,37 @@ def start_attempt(
         raise HTTPException(status_code=409, detail="Could not create a new attempt.") from None
     db.refresh(attempt)
     return QuizAttemptRead.model_validate(attempt)
+
+
+@router.get(
+    "/courses/{course_id}/assessments/{assessment_id}/attempts/active",
+    response_model=QuizAttemptDetailRead | None,
+    summary="Find the current student's unfinished attempt",
+)
+def get_active_attempt(
+    course_id: int,
+    assessment_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> QuizAttemptDetailRead | None:
+    if current_user.role != UserRole.STUDENT.value:
+        raise HTTPException(status_code=403, detail="Only students have quiz attempts.")
+    course = get_course_or_404(db, course_id)
+    ensure_course_access(course, current_user, db)
+    assessment = get_assessment_or_404(db, course_id, assessment_id)
+    if assessment.status != AssessmentStatus.PUBLISHED.value:
+        raise HTTPException(status_code=404, detail="Assessment not found.")
+
+    attempt = db.scalar(
+        select(QuizAttempt)
+        .where(
+            QuizAttempt.assessment_id == assessment_id,
+            QuizAttempt.student_id == current_user.id,
+            QuizAttempt.status == AttemptStatus.IN_PROGRESS.value,
+        )
+        .order_by(QuizAttempt.started_at.desc())
+    )
+    return build_attempt_detail(db, attempt) if attempt is not None else None
 
 
 @router.put(
