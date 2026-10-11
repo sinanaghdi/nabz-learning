@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 
 import {
   apiRequest,
@@ -12,7 +13,6 @@ import {
   type CourseStudent,
   type CreatedCourse,
   type Question,
-  type StudentQuestion,
   type StudentSummary,
   type Topic,
   type TopicAnalytics,
@@ -80,7 +80,7 @@ function EmptyState({
 }: {
   title: string;
   description: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <div className="empty-state">

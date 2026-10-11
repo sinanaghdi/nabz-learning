@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 const steps = [
-  { number: "۰۱", title: "تمرین هدفمند", description: "تمرین‌های کوتاه و مرتبط با مباحث یک درس، با تمرکز بر یادگیری واقعی." },
-  { number: "۰۲", title: "بازخورد روشن", description: "دانشجو متوجه می‌شود کدام مبحث را بهتر است دوباره مرور کند." },
-  { number: "۰۳", title: "دید بهتر برای مدرس", description: "پاسخ‌ها در آینده به مدرس کمک می‌کنند نقاط دشوار کلاس را دقیق‌تر ببیند." },
+  { number: "۰۱", title: "تمرین هدفمند", description: "تمرین‌های مرتبط با مباحث یک درس، با تمرکز بر یادگیری واقعی." },
+  { number: "۰۲", title: "بازخورد روشن", description: "دانشجو می‌فهمد کدام مبحث را بهتر است دوباره مرور کند." },
+  { number: "۰۳", title: "دید بهتر برای مدرس", description: "مدرس می‌تواند مباحث دشوار کلاس را با داده‌های آزمون شناسایی کند." },
 ];
 
 export default function HomePage() {
@@ -13,17 +13,24 @@ export default function HomePage() {
         <Link className="brand" href="/" aria-label="نبض یادگیری، صفحه اصلی">
           <span className="brand-mark" aria-hidden="true">ن</span><span>نبض یادگیری</span>
         </Link>
-        <span className="header-note">پروژهٔ آزمایشی برای یادگیری بهتر در دانشگاه</span>
+        <div className="landing-actions">
+          <Link className="landing-login" href="/login">ورود</Link>
+          <Link className="button button-primary" href="/register">شروع با حساب دانشجویی <span aria-hidden="true">←</span></Link>
+        </div>
       </header>
       <section className="hero" aria-labelledby="hero-title">
         <div>
           <p className="eyebrow">یادگیری، با بازخورد دقیق‌تر</p>
           <h1 id="hero-title">فقط نمره را نبینیم؛ بفهمیم کجا یادگیری سخت شده است.</h1>
           <p className="hero-copy">
-            نبض یادگیری در حال شکل‌گیری است؛ بستری برای تمرین‌های کوتاه و کمک به دانشجو
-            و مدرس تا مبحث‌هایی را که نیاز به توجه بیشتری دارند، بهتر شناسایی کنند.
+            نبض یادگیری بستری فارسی برای تمرین‌های کوتاه، آزمون‌های درسی و مشاهدهٔ مباحثی است
+            که به مرور بیشتری نیاز دارند؛ برای دانشجو و مدرس، در یک چرخهٔ روشن.
           </p>
-          <span className="status-pill"><span aria-hidden="true" /> نسخهٔ اولیه · در حال توسعه</span>
+          <div className="landing-hero-actions">
+            <Link className="button button-primary" href="/login">ورود به پنل <span aria-hidden="true">←</span></Link>
+            <Link className="button button-secondary" href="/register">ساخت حساب دانشجو</Link>
+          </div>
+          <span className="status-pill"><span aria-hidden="true" /> نسخهٔ آزمایشی · در حال توسعه</span>
         </div>
         <div className="visual-card" aria-label="نمای انتزاعی از بازخورد یادگیری">
           <div className="orbit"><div className="orbit-inner" aria-hidden="true">ن</div></div>
@@ -43,8 +50,8 @@ export default function HomePage() {
         </div>
       </section>
       <footer className="site-footer">
-        <span>نبض یادگیری · نسخهٔ زیرساختی</span>
-        <span>هنوز برای استفادهٔ واقعی یا نگهداری دادهٔ دانشجویان آماده نیست.</span>
+        <span>نبض یادگیری · فضای کاری فارسی</span>
+        <span>برای ورود استاد، حساب باید توسط مدیر سامانه ساخته شده باشد.</span>
       </footer>
     </main>
   );
