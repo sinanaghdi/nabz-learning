@@ -51,7 +51,9 @@ def add_user(test_session, email: str, role: UserRole) -> dict[str, str]:
     return {"Authorization": f"Bearer {create_access_token(str(user_id))}"}
 
 
-def setup_course_and_question(client: TestClient, instructor_headers: dict[str, str]) -> tuple[int, int]:
+def setup_course_and_question(
+    client: TestClient, instructor_headers: dict[str, str]
+) -> tuple[int, int]:
     course_response = client.post(
         "/api/v1/courses",
         headers=instructor_headers,

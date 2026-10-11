@@ -16,7 +16,7 @@ from app.models.assessments import (
     AttemptStatus,
     QuizAttempt,
 )
-from app.models.course import Course, CourseTopic, Enrollment, Question, QuestionOption
+from app.models.course import CourseTopic, Question, QuestionOption
 from app.models.user import User, UserRole
 from app.schemas.assessments import (
     AnswerSubmission,
@@ -158,7 +158,10 @@ def ensure_attempt_is_open(attempt: QuizAttempt, assessment: Assessment) -> None
     if assessment.duration_minutes is not None:
         deadline = aware_utc(attempt.started_at) + timedelta(minutes=assessment.duration_minutes)
         if datetime.now(UTC) >= deadline:
-            raise HTTPException(status_code=409, detail="The time limit has expired. Submit the attempt.")
+            raise HTTPException(
+                status_code=409,
+                detail="The time limit has expired. Submit the attempt.",
+            )
 
 
 @router.post(
@@ -374,7 +377,10 @@ def save_answer(
         raise HTTPException(status_code=422, detail="This question is not part of the assessment.")
     option = db.get(QuestionOption, payload.selected_option_id)
     if option is None or option.question_id != question_id:
-        raise HTTPException(status_code=422, detail="Selected option does not belong to this question.")
+        raise HTTPException(
+            status_code=422,
+            detail="Selected option does not belong to this question.",
+        )
 
     answer = db.scalar(
         select(AttemptAnswer).where(
@@ -442,7 +448,10 @@ def submit_attempt(
     attempt = get_attempt_or_404(db, attempt_id)
     assessment = ensure_attempt_owner_or_manager(db, attempt, current_user)
     if current_user.role != UserRole.STUDENT.value or attempt.student_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the attempt owner can submit this attempt.")
+        raise HTTPException(
+            status_code=403,
+            detail="Only the attempt owner can submit this attempt.",
+        )
     if attempt.status != AttemptStatus.IN_PROGRESS.value:
         raise HTTPException(status_code=409, detail="This attempt has already been submitted.")
 
@@ -463,7 +472,8 @@ def submit_attempt(
     correct_by_question = {question_id: option_id for question_id, option_id in correct_options}
     attempt.question_count = len(question_ids)
     attempt.correct_count = sum(
-        selected_by_question.get(question_id) == correct_by_question.get(question_id)
+        selected_by_question.get(question_id) is not None
+        and selected_by_question.get(question_id) == correct_by_question.get(question_id)
         for question_id in question_ids
     )
     attempt.score_percent = round(attempt.correct_count * 100 / attempt.question_count, 2)
