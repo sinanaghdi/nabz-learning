@@ -1,13 +1,22 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Integer, String, UniqueConstraint, func, true
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+    true,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     STUDENT = "student"
     INSTRUCTOR = "instructor"
     ADMIN = "admin"
