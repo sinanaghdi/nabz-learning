@@ -1,3 +1,11 @@
+from app.models.assessments import (
+    Assessment,
+    AssessmentQuestion,
+    AssessmentStatus,
+    AttemptAnswer,
+    AttemptStatus,
+    QuizAttempt,
+)
 from app.models.course import (
     Course,
     CourseTopic,
@@ -10,6 +18,11 @@ from app.models.course import (
 from app.models.user import User, UserRole
 
 __all__ = [
+    "Assessment",
+    "AssessmentQuestion",
+    "AssessmentStatus",
+    "AttemptAnswer",
+    "AttemptStatus",
     "Course",
     "CourseTopic",
     "Enrollment",
@@ -17,6 +30,7 @@ __all__ = [
     "QuestionDifficulty",
     "QuestionOption",
     "QuestionStatus",
+    "QuizAttempt",
     "User",
     "UserRole",
 ]
