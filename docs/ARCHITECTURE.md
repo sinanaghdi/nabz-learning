@@ -1,75 +1,71 @@
 # Nabz Learning — Architecture Overview
 
-**Status:** Phase 1 foundation  
+**Status:** Phase 2 foundation  
 **Architecture style:** Modular monolith  
 **Primary pilot:** One instructor, one university course, a small student cohort
 
 ## Product boundary
 
-The first useful product loop is intentionally narrow: an instructor prepares a practice quiz, students complete it, and the instructor gets an understandable summary of difficult topics. The product should not become a full LMS during the pilot. Public rankings, opportunity matching, AI recommendations, and institution-wide administration are out of scope.
+The first useful product loop is intentionally narrow: an instructor prepares a practice quiz, students complete it, and the instructor gets an understandable summary of difficult topics. Rankings, opportunity matching, AI recommendations, and institution-wide administration are out of scope until the pilot validates the core value.
 
 ## System context
 
 ```mermaid
 flowchart TD
-    Student[Student browser]
-    Instructor[Instructor browser]
+    Browser[Student or instructor browser]
     Web[Next.js web app]
     API[FastAPI API]
+    Auth[Authentication and role dependencies]
     DB[(PostgreSQL)]
     Migrations[Alembic migrations]
-    Student --> Web
-    Instructor --> Web
+    Browser --> Web
     Web -->|HTTPS / JSON in hosted environments| API
-    API --> DB
+    API --> Auth
+    Auth --> DB
     Migrations --> DB
 ```
 
-## Repository structure
+## Main modules
 
 - `frontend/`: Next.js App Router, TypeScript, Persian-first RTL presentation.
-- `backend/app/main.py`: API construction, CORS, versioned router.
-- `backend/app/api/`: versioned HTTP routes.
-- `backend/app/core/`: application settings.
+- `backend/app/api/`: versioned HTTP routes, authentication and role dependencies.
+- `backend/app/core/`: settings, JWT issuance/verification, password hashing.
+- `backend/app/models/`: SQLAlchemy persistence models.
+- `backend/app/schemas/`: validated request and response DTOs.
 - `backend/app/db/`: SQLAlchemy base, engine, and session dependency.
-- `backend/alembic/`: migration environment and revision template.
+- `backend/alembic/`: migration environment and revisions.
 - `backend/tests/`: backend tests.
 - `docs/adr/`: architecture decision records.
-- `.github/workflows/ci.yml`: automated checks.
-
-## Technology decisions
-
-| Concern | Choice | Rationale |
-|---|---|---|
-| Web | Next.js + TypeScript | Structured UI and type checking |
-| API | FastAPI | Typed endpoints and generated OpenAPI |
-| Settings | Pydantic Settings | Environment-based configuration |
-| ORM | SQLAlchemy 2 | Explicit persistence and transactions |
-| Database | PostgreSQL | Relational constraints and transactions |
-| Migrations | Alembic | Versioned schema evolution |
-| Local environment | Docker Compose | Reproducible services |
-| CI | GitHub Actions | Automated checks |
-
-See [ADR 0001](adr/0001-stack.md) for trade-offs.
 
 ## API conventions
 
-- Product routes use the `/api/v1` prefix.
+- Product API routes start with `/api/v1`.
 - Health endpoint: `GET /api/v1/health`.
-- Local interactive docs: `/docs`.
-- Add explicit request/response schemas as domain endpoints are introduced.
-- Standardize errors, pagination, authorization, and audit requirements before wider rollout.
+- Register: `POST /api/v1/auth/register` (student account only).
+- Login: `POST /api/v1/auth/login` (returns a short-lived bearer JWT).
+- Current account: `GET /api/v1/auth/me` (requires a valid bearer token).
+- Local OpenAPI docs: `/docs`.
 
-The health endpoint confirms that the API process responds; it does not prove PostgreSQL is reachable. Compose separately waits for the database health check before starting the API.
+## Identity and role policy
 
-## Configuration and database
+The initial role set is `student`, `instructor`, and `admin`. Public registration assigns only `student`; the API rejects extra fields, including a submitted role. Instructor and admin provisioning must be introduced through a trusted workflow rather than self-service role selection.
 
-Configuration comes from environment variables. `.env.example` documents local settings and `.env` is ignored by Git. Compose credentials are development-only. Production requires managed secrets, restricted network access, TLS, backups, monitoring, and reviewed database permissions.
+Passwords are hashed using Argon2 through pwdlib. JWTs are signed with HS256, carry a subject, issuer, issue time and expiry, and have a configurable short lifetime. Protected routes use a shared dependency that resolves the account from the token and rejects invalid or disabled accounts. Route-specific authorization can use `require_roles(...)`.
 
-The SQLAlchemy base and Alembic environment are wired up, but Phase 1 defines no product tables and no domain migration. Add the first migration alongside the first persistent domain model; do not change an already-applied migration to represent a later schema state.
+This is a useful foundation, not a complete production identity service. Refresh tokens, password reset, email verification, login throttling, audit events, and formal admin provisioning are not implemented yet.
 
-## Testing and future modules
+## Database
 
-CI runs backend lint/tests and frontend lint/typecheck/build. The current backend test covers the health route only, so it does not represent product readiness.
+The first Alembic revision creates the `users` table with unique email, password hash, role constraint, active status, and creation timestamp. Docker Compose runs migrations on startup for local development. Production deployment should execute migrations as a controlled release step, not from every application replica.
 
-Likely later modules are identity/roles, courses/enrollments, question bank/topic mapping, quizzes/attempts/answers, deterministic grading, and instructor learning-gap reports. Use a modular monolith until pilot evidence justifies more services. Redis, Celery, and AI services are not justified by the current scope.
+## Configuration and secrets
+
+Configuration comes from environment variables. `.env.example` documents local-only settings and `.env` is ignored by Git. Production mode rejects the example JWT key. Production still requires managed secrets, restricted network access, TLS, backups, monitoring, and a reviewed data-retention/privacy policy.
+
+## Testing
+
+Tests cover student registration, role-escalation rejection, login, token-protected profile access, duplicate email handling, invalid credentials/tokens, and the reusable role guard. Tests use an isolated in-memory SQLite database rather than a shared database.
+
+## Deferred modules
+
+Courses/enrollments, question bank and topic mapping, quizzes/attempts, grading, and instructor learning-gap reports remain later phases. Keep a modular monolith until the pilot demonstrates a concrete need for service separation.

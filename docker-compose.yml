@@ -24,6 +24,8 @@ services:
       APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://nabz:nabz_dev_only@db:5432/nabz_learning}
       CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost:3000"]}'
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-change-this-secret-before-deployment}
+      JWT_ACCESS_TOKEN_MINUTES: ${JWT_ACCESS_TOKEN_MINUTES:-30}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

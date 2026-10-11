@@ -4,14 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nabz-learning-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "API foundation for Nabz Learning"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.13,<2.0",
+  "email-validator>=2.2,<3.0",
   "fastapi>=0.143,<1.0",
+  "PyJWT>=2.9,<3.0",
   "psycopg[binary]>=3.2,<4.0",
   "pydantic-settings>=2.5,<3.0",
+  "pwdlib[argon2]>=0.2.1,<1.0",
   "sqlalchemy>=2.0,<3.0",
   "uvicorn[standard]>=0.30,<1.0",
 ]
