@@ -17,7 +17,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     create_user.add_argument("--email", required=True)
     create_user.add_argument("--full-name", required=True)
-    create_user.add_argument("--role", choices=[UserRole.INSTRUCTOR.value, UserRole.ADMIN.value], required=True)
+    create_user.add_argument(
+        "--role",
+        choices=[UserRole.INSTRUCTOR.value, UserRole.ADMIN.value],
+        required=True,
+    )
     return parser
 
 
