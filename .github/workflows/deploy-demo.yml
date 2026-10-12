@@ -1,0 +1,71 @@
+name: Deploy interactive demo to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "demo/**"
+      - ".github/workflows/deploy-demo.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "demo/**"
+      - ".github/workflows/deploy-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "github-pages-demo"
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate static demo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate embedded JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          html = Path("demo/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.DOTALL)
+          if not scripts:
+              raise SystemExit("No embedded JavaScript found in demo/index.html")
+          Path("/tmp/nabz-demo-check.js").write_text("\n".join(scripts), encoding="utf-8")
+          PY
+          node --check /tmp/nabz-demo-check.js
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload static demo
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: demo
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
