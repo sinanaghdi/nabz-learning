@@ -6,6 +6,11 @@ on:
     paths:
       - "demo/**"
       - ".github/workflows/deploy-demo.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "demo/**"
+      - ".github/workflows/deploy-demo.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,7 +21,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate:
+    name: Validate static demo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate embedded JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          html = Path("demo/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.DOTALL)
+          if not scripts:
+              raise SystemExit("No embedded JavaScript found in demo/index.html")
+          Path("/tmp/nabz-demo-check.js").write_text("\n".join(scripts), encoding="utf-8")
+          PY
+          node --check /tmp/nabz-demo-check.js
+
   deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -28,20 +55,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Validate demo JavaScript
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          html = Path("demo/index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.DOTALL)
-          if not scripts:
-              raise SystemExit("No embedded JavaScript found in demo/index.html")
-          Path("/tmp/nabz-demo-check.js").write_text("\\n".join(scripts), encoding="utf-8")
-          PY
-          node --check /tmp/nabz-demo-check.js
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
