@@ -15,6 +15,7 @@ from app.models.course import (
     QuestionOption,
     QuestionStatus,
 )
+from app.models.opportunities import Opportunity, OpportunityCategory, OpportunityStatus
 from app.models.user import User, UserRole
 
 __all__ = [
