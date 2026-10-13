@@ -23,7 +23,7 @@
 - `backend/app/api/questions.py`: course-scoped question-bank operations.
 - `backend/app/api/assessments.py`: assessment lifecycle, answer-safe delivery, attempts, resume, and scoring.
 - `backend/app/api/opportunities.py`: opportunity submissions, moderation, and status transitions.
-- `backend/app/api/leaderboard.py` (or the route module exposing leaderboard endpoints): course ranking from submitted attempts with student name masking.
+- `backend/app/api/leaderboard.py`: course ranking from submitted attempts with student name masking.
 - `backend/app/api/course_access.py`: reusable course ownership and enrollment checks.
 - `backend/app/models/`: SQLAlchemy domain models.
 - `backend/app/schemas/`: explicit request/response DTOs.
