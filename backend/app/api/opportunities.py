@@ -141,7 +141,10 @@ def close_opportunity(
 ) -> OpportunityRead:
     item = get_opportunity_or_404(db, opportunity_id)
     if item.posted_by_id != current_user.id and not can_moderate(current_user):
-        raise HTTPException(status_code=403, detail="Only the author or a moderator can close this opportunity.")
+        raise HTTPException(
+            status_code=403,
+            detail="Only the author or a moderator can close this opportunity.",
+        )
     if item.status == OpportunityStatus.CLOSED.value:
         raise HTTPException(status_code=409, detail="This opportunity is already closed.")
     item.status = OpportunityStatus.CLOSED.value
