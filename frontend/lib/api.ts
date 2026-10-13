@@ -154,6 +154,26 @@ export type StudentSummary = {
   last_submitted_at: string | null;
 };
 
+export type OpportunityCategory = "job" | "internship" | "research" | "project" | "paper";
+export type OpportunityStatus = "draft" | "published" | "closed";
+
+export type Opportunity = {
+  id: number;
+  posted_by_id: number;
+  category: OpportunityCategory;
+  title: string;
+  summary: string;
+  description: string;
+  required_skills: string | null;
+  application_url: string | null;
+  deadline: string | null;
+  status: OpportunityStatus;
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
+  is_owner: boolean;
+};
+
 export type LeaderboardEntry = {
   rank: number | null;
   display_name: string;

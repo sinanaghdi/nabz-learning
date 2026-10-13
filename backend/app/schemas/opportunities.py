@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from enum import StrEnum
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -20,10 +19,18 @@ class OpportunityCreate(StrictInputModel):
     application_url: str | None = Field(default=None, max_length=2048)
     deadline: date | None = None
 
-    @field_validator("title", "summary", "description")
+    @field_validator("title", "summary")
     @classmethod
-    def normalize_required_text(cls, value: str) -> str:
+    def normalize_inline_text(cls, value: str) -> str:
         normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("This field cannot be blank.")
+        return normalized
+
+    @field_validator("description")
+    @classmethod
+    def normalize_description(cls, value: str) -> str:
+        normalized = value.strip()
         if not normalized:
             raise ValueError("This field cannot be blank.")
         return normalized
