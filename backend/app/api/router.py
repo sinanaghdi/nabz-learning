@@ -19,5 +19,6 @@ def health_check() -> dict[str, str]:
 api_router.include_router(auth_router)
 api_router.include_router(courses_router)
 api_router.include_router(leaderboard_router)
+api_router.include_router(opportunities_router)
 api_router.include_router(questions_router)
 api_router.include_router(assessments_router)
