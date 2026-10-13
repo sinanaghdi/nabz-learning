@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from enum import StrEnum
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
