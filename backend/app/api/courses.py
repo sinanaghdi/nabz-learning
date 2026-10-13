@@ -35,7 +35,7 @@ router = APIRouter(tags=["courses"])
 )
 def create_course(
     payload: CourseCreate,
-    current_user: User = Depends(require_roles(UserRole.INSTRUCTOR)),
+    current_user: User = Depends(require_roles(UserRole.INSTRUCTOR, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ) -> CourseCreatedRead:
     course = Course(
@@ -43,7 +43,7 @@ def create_course(
         title=payload.title,
         description=payload.description,
         term=payload.term,
-        enrollment_code=secrets.token_hex(4).upper(),
+        enrollment_code=secrets.token_hex(8).upper(),
     )
     db.add(course)
     db.commit()
