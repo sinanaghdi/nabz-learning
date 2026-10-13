@@ -154,6 +154,16 @@ export type StudentSummary = {
   last_submitted_at: string | null;
 };
 
+export type LeaderboardEntry = {
+  rank: number | null;
+  display_name: string;
+  submitted_attempts: number;
+  average_score_percent: number | null;
+  best_score_percent: number | null;
+  last_submitted_at: string | null;
+  is_current_user: boolean;
+};
+
 export type CourseStudent = {
   id: number;
   email: string;
