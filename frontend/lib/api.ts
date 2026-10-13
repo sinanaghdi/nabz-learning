@@ -160,6 +160,7 @@ export type OpportunityStatus = "draft" | "published" | "closed";
 export type Opportunity = {
   id: number;
   posted_by_id: number;
+  posted_by_name: string | null;
   category: OpportunityCategory;
   title: string;
   summary: string;

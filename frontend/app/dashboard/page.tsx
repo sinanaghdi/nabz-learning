@@ -954,7 +954,7 @@ export default function DashboardPage() {
                 {item.required_skills && <div className="opportunity-skills"><strong>مهارت‌های موردنیاز</strong><span>{item.required_skills}</span></div>}
                 <div className="opportunity-meta">
                   <span>مهلت: {item.deadline ? dateText(item.deadline) : "اعلام نشده"}</span>
-                  <span>{item.is_owner ? "ثبت‌شده توسط شما" : "فرصت گروه"}</span>
+                  <span>{item.is_owner ? "ثبت‌شده توسط شما" : canManage && item.posted_by_name ? "ارسال‌کننده: " + item.posted_by_name : "فرصت گروه"}</span>
                 </div>
                 <div className="opportunity-actions">
                   {item.status === "published" && item.application_url && <a className="button button-secondary" href={item.application_url} target="_blank" rel="noreferrer">جزئیات / درخواست ↗</a>}

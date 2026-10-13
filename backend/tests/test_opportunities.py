@@ -84,6 +84,7 @@ def test_opportunity_submission_review_and_publication(context) -> None:
     opportunity_id = submission["id"]
     assert submission["status"] == "draft"
     assert submission["is_owner"] is True
+    assert submission["posted_by_name"] == "Student"
 
     # Drafts are visible to the author and moderators, but not other students.
     own_list = client.get("/api/v1/opportunities", headers=student_headers)
@@ -95,6 +96,7 @@ def test_opportunity_submission_review_and_publication(context) -> None:
     moderator_list = client.get("/api/v1/opportunities", headers=instructor_headers)
     assert moderator_list.status_code == 200, moderator_list.text
     assert [item["id"] for item in moderator_list.json()] == [opportunity_id]
+    assert moderator_list.json()[0]["posted_by_name"] == "Student"
 
     forbidden = client.post(
         f"/api/v1/opportunities/{opportunity_id}/publish",
@@ -114,6 +116,7 @@ def test_opportunity_submission_review_and_publication(context) -> None:
     assert visible.status_code == 200, visible.text
     assert len(visible.json()) == 1
     assert visible.json()[0]["is_owner"] is False
+    assert visible.json()[0]["posted_by_name"] is None
     assert visible.json()[0]["title"] == submission["title"]
 
     closed = client.post(
