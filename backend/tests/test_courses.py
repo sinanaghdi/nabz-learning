@@ -72,7 +72,8 @@ def test_instructor_creates_course_and_student_enrolls(context) -> None:
     _, student_headers = add_user(test_session, "student@example.edu", UserRole.STUDENT)
     course = create_course(client, instructor_headers)
 
-    assert course["enrollment_code"]
+    assert len(course["enrollment_code"]) == 16
+    assert course["enrollment_code"].isalnum()
     assert "enrollment_code" not in client.get(
         f"/api/v1/courses/{course['id']}", headers=instructor_headers
     ).json()
@@ -92,14 +93,23 @@ def test_instructor_creates_course_and_student_enrolls(context) -> None:
 
 def test_registration_role_boundary_and_course_creation_permissions(context) -> None:
     client, test_session = context
+    admin, admin_headers = add_user(test_session, "admin@example.edu", UserRole.ADMIN)
     _, student_headers = add_user(test_session, "student@example.edu", UserRole.STUDENT)
 
-    response = client.post(
+    admin_response = client.post(
+        "/api/v1/courses",
+        headers=admin_headers,
+        json={"title": "Admin-created course"},
+    )
+    assert admin_response.status_code == 201, admin_response.text
+    assert admin_response.json()["instructor_id"] == admin.id
+
+    student_response = client.post(
         "/api/v1/courses",
         headers=student_headers,
         json={"title": "Not allowed"},
     )
-    assert response.status_code == 403
+    assert student_response.status_code == 403
 
 
 def test_duplicate_enrollment_is_rejected(context) -> None:

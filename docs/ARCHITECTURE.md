@@ -1,6 +1,6 @@
 # Nabz Learning — Architecture Overview
 
-**Status:** Phase 7 — reliability improvements and security regression tests  
+**Status:** MVP phases 1–7 merged; interactive demo deployed, integrated application local-only  
 **Architecture style:** Modular monolith  
 **Pilot:** One instructor, one course, and a small student cohort
 
@@ -13,6 +13,7 @@
 5. Students start or resume an attempt, save answers, and submit.
 6. The API grades objective questions and persists results.
 7. Instructor analytics aggregate submitted attempts into course and topic summaries.
+8. Students and instructors browse opportunities for jobs, internships, projects, and research; instructors/admins moderate publication.
 
 ## Modules
 
@@ -21,6 +22,8 @@
 - `backend/app/api/courses.py`: course CRUD, enrollment, roster, and topics.
 - `backend/app/api/questions.py`: course-scoped question-bank operations.
 - `backend/app/api/assessments.py`: assessment lifecycle, answer-safe delivery, attempts, resume, and scoring.
+- `backend/app/api/opportunities.py`: opportunity submissions, moderation, and status transitions.
+- `backend/app/api/leaderboard.py`: course ranking from submitted attempts with student name masking.
 - `backend/app/api/course_access.py`: reusable course ownership and enrollment checks.
 - `backend/app/models/`: SQLAlchemy domain models.
 - `backend/app/schemas/`: explicit request/response DTOs.
@@ -64,4 +67,4 @@ This is a pilot-oriented application, not a production-ready service. Grading cu
 
 ## Deferred work
 
-Question snapshots/versioning, richer question types, manual grading, randomized question/option order, scheduled opening/closing, token refresh, email verification, password reset, production privacy/security review, and public deployment remain future work.
+Question snapshots/versioning, richer question types, manual grading, randomized question/option order, scheduled opening/closing, token refresh, email verification, password reset, production privacy/security review, deterministic frontend dependency locking, browser-level end-to-end tests, rate limiting for authentication and enrollment-code lookup, and public deployment of the integrated app remain future work.
