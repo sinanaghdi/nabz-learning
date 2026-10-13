@@ -380,3 +380,9 @@ h1 { max-width:620px; margin-bottom:20px; font-size:clamp(2rem,4.3vw,3.65rem); l
 }
 @media(max-width:420px){.metric-grid{grid-template-columns:1fr 1fr}.metric-card{display:grid;gap:5px}.metric-copy strong{font-size:1.2rem}.breadcrumb>span{display:none}.course-switcher select{max-width:105px}.field-two-column{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+.leaderboard-note{margin:0 0 15px;max-width:920px}
+.leaderboard-current td{background:#f2faf8}
+.leaderboard-rank{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:27px;padding:3px 8px;border:1px solid var(--line);border-radius:9px;font-weight:800;color:var(--muted)}
+.leaderboard-rank-top{border-color:color-mix(in srgb,var(--accent) 40%,var(--line));background:#fbf2e3;color:#95641f}
+.leaderboard-you{margin-right:8px;vertical-align:middle}
