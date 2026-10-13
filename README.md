@@ -63,6 +63,7 @@ docker compose exec backend python -m app.cli create-privileged-user --role inst
 - ذخیرهٔ پاسخ و تصحیح سمت سرور
 - بازیابی آزمون نیمه‌تمام و پاسخ‌های ذخیره‌شده
 - گزارش عملکرد کلی، عملکرد مبحث‌ها و خلاصهٔ دانشجوها
+- رتبه‌بندی درس از روی میانگین تلاش‌های نهایی‌شده؛ نام هم‌کلاسی‌ها برای دانشجوها ناشناس است و مدرس/مدیر نام کامل را می‌بیند
 - رابط فارسی RTL متناسب با نقش مدرس یا دانشجو
 
 ## مسیرهای مهم API
@@ -77,6 +78,7 @@ docker compose exec backend python -m app.cli create-privileged-user --role inst
 | `POST` | `/courses` | مدرس/مدیر |
 | `POST` | `/courses/enroll` | دانشجو با کد عضویت |
 | `GET, POST` | `/courses/{id}/topics` | مشاهده با دسترسی درس / مدیریت توسط مدرس |
+| `GET` | `/courses/{id}/leaderboard` | اعضای درس؛ نام کامل فقط برای مدرس/مدیر |
 | `GET, POST` | `/courses/{id}/questions` | مدرس/مدیر |
 | `POST` | `/courses/{id}/assessments` | مدرس/مدیر درس |
 | `POST` | `/courses/{id}/assessments/{assessment_id}/publish` | مدرس/مدیر درس |
