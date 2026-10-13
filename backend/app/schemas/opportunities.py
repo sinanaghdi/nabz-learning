@@ -60,6 +60,7 @@ class OpportunityRead(BaseModel):
 
     id: int
     posted_by_id: int
+    posted_by_name: str | None
     category: OpportunityCategory
     title: str
     summary: str
