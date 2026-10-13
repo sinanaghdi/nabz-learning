@@ -85,7 +85,8 @@ def get_course_leaderboard(
         elif row.id == current_user.id:
             display_name = "شما"
         elif rank is not None:
-            display_name = f"دانشجوی رتبهٔ {rank}"
+            localized_rank = str(rank).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+            display_name = f"دانشجوی رتبهٔ {localized_rank}"
         else:
             display_name = "دانشجوی بدون رتبه"
 
