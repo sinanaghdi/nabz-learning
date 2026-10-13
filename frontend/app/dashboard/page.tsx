@@ -1015,7 +1015,7 @@ export default function DashboardPage() {
           {activeNav === "leaderboard" && renderLeaderboard()}
           {activeNav === "opportunities" && renderOpportunities()}
 
-          <footer className="dashboard-footer"><span>نبض یادگیری <b>·</b> نسخهٔ زیرساختی</span><span>داده‌ها از سرور درس انتخاب‌شده دریافت می‌شوند.</span></footer>
+          <footer className="dashboard-footer"><span>نبض یادگیری <b>·</b> نسخهٔ آزمایشی</span><span>{activeNav === "opportunities" ? "فرصت‌ها از سرویس فرصت‌ها دریافت می‌شوند." : "داده‌ها از سرور درس انتخاب‌شده دریافت می‌شوند."}</span></footer>
         </div>
       </section>
 
