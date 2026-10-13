@@ -76,7 +76,9 @@ def test_opportunity_submission_review_and_publication(context) -> None:
     student_headers = add_user(test_session, "student@example.edu", UserRole.STUDENT)
     other_student_headers = add_user(test_session, "other@example.edu", UserRole.STUDENT)
 
-    created = client.post("/api/v1/opportunities", headers=student_headers, json=opportunity_payload())
+    created = client.post(
+        "/api/v1/opportunities", headers=student_headers, json=opportunity_payload()
+    )
     assert created.status_code == 201, created.text
     submission = created.json()
     opportunity_id = submission["id"]
