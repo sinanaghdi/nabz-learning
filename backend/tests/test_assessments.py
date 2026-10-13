@@ -460,3 +460,92 @@ def test_answer_rejects_option_from_another_question(context) -> None:
         json={"selected_option_id": second_question.json()["options"][0]["id"]},
     )
     assert invalid_answer.status_code == 422
+
+
+
+def test_course_leaderboard_ranks_results_and_masks_peer_names(context) -> None:
+    client, test_session = context
+    instructor_headers = add_user(test_session, "instructor@example.edu", UserRole.INSTRUCTOR)
+    top_student_headers = add_user(test_session, "top@example.edu", UserRole.STUDENT)
+    peer_headers = add_user(test_session, "peer@example.edu", UserRole.STUDENT)
+    outsider_headers = add_user(test_session, "outsider@example.edu", UserRole.STUDENT)
+    course_id, question_id = setup_course_and_question(client, instructor_headers)
+
+    with test_session() as db:
+        from app.models.course import Course
+
+        enrollment_code = db.get(Course, course_id).enrollment_code
+
+    for headers in (top_student_headers, peer_headers):
+        enrolled = client.post(
+            "/api/v1/courses/enroll",
+            headers=headers,
+            json={"enrollment_code": enrollment_code},
+        )
+        assert enrolled.status_code == 201, enrolled.text
+
+    draft = client.post(
+        f"/api/v1/courses/{course_id}/assessments",
+        headers=instructor_headers,
+        json={"title": "Leaderboard test", "question_ids": [question_id]},
+    )
+    assert draft.status_code == 201, draft.text
+    assessment_id = draft.json()["id"]
+    published = client.post(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}/publish",
+        headers=instructor_headers,
+    )
+    assert published.status_code == 200, published.text
+    detail = client.get(
+        f"/api/v1/courses/{course_id}/assessments/{assessment_id}",
+        headers=top_student_headers,
+    )
+    assert detail.status_code == 200, detail.text
+    options = detail.json()["questions"][0]["options"]
+
+    for headers, selected_index in ((top_student_headers, 1), (peer_headers, 0)):
+        attempt = client.post(
+            f"/api/v1/courses/{course_id}/assessments/{assessment_id}/attempts",
+            headers=headers,
+        )
+        assert attempt.status_code == 201, attempt.text
+        attempt_id = attempt.json()["id"]
+        saved = client.put(
+            f"/api/v1/attempts/{attempt_id}/answers/{question_id}",
+            headers=headers,
+            json={"selected_option_id": options[selected_index]["id"]},
+        )
+        assert saved.status_code == 200, saved.text
+        submitted = client.post(
+            f"/api/v1/attempts/{attempt_id}/submit",
+            headers=headers,
+        )
+        assert submitted.status_code == 200, submitted.text
+
+    student_view = client.get(
+        f"/api/v1/courses/{course_id}/leaderboard",
+        headers=top_student_headers,
+    )
+    assert student_view.status_code == 200, student_view.text
+    student_rows = student_view.json()
+    assert student_rows[0]["rank"] == 1
+    assert student_rows[0]["display_name"] == "شما"
+    assert student_rows[0]["is_current_user"] is True
+    assert student_rows[0]["average_score_percent"] == 100.0
+    assert student_rows[1]["rank"] == 2
+    assert student_rows[1]["display_name"] == "دانشجوی رتبهٔ ۲"
+    assert "Peer" not in student_view.text
+    assert "Top" not in student_view.text
+
+    instructor_view = client.get(
+        f"/api/v1/courses/{course_id}/leaderboard",
+        headers=instructor_headers,
+    )
+    assert instructor_view.status_code == 200, instructor_view.text
+    assert {entry["display_name"] for entry in instructor_view.json()} == {"Top", "Peer"}
+
+    denied = client.get(
+        f"/api/v1/courses/{course_id}/leaderboard",
+        headers=outsider_headers,
+    )
+    assert denied.status_code == 403
