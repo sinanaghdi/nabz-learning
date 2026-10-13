@@ -14,9 +14,12 @@ router = APIRouter(prefix="/opportunities", tags=["opportunities"])
 
 
 def opportunity_read(item: Opportunity, current_user: User) -> OpportunityRead:
+    is_owner = item.posted_by_id == current_user.id
+    show_author = is_owner or can_moderate(current_user)
     return OpportunityRead(
         id=item.id,
         posted_by_id=item.posted_by_id,
+        posted_by_name=item.posted_by.full_name if show_author else None,
         category=OpportunityCategory(item.category),
         title=item.title,
         summary=item.summary,
@@ -28,7 +31,7 @@ def opportunity_read(item: Opportunity, current_user: User) -> OpportunityRead:
         created_at=item.created_at,
         updated_at=item.updated_at,
         published_at=item.published_at,
-        is_owner=item.posted_by_id == current_user.id,
+        is_owner=is_owner,
     )
 
 
