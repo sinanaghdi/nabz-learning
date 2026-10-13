@@ -9,6 +9,7 @@ This checklist separates code controls from operational work still required. CI 
 - [x] Bearer tokens are signed, issuer-checked, and expire.
 - [x] Disabled accounts are rejected by authenticated API dependencies.
 - [x] Course ownership and enrollment checks protect course-scoped operations.
+- [x] Enrollment codes are generated from 64 bits of cryptographic randomness and normalized case-insensitively.
 - [x] Student assessment payloads omit correctness flags and explanations.
 - [x] Answer writes validate attempt ownership, assessment membership, and option/question association.
 - [x] Submitted attempts cannot be submitted twice.
@@ -20,7 +21,7 @@ This checklist separates code controls from operational work still required. CI 
 
 - [ ] Replace local JWT/database credentials with managed deployment secrets.
 - [ ] Enforce HTTPS end-to-end and configure trusted proxy/host behavior.
-- [ ] Add distributed rate limits for login and registration, with monitoring.
+- [ ] Add distributed rate limits for login, registration, and enrollment-code lookup, with monitoring.
 - [ ] Decide on email verification, account recovery, instructor verification, and support procedures.
 - [ ] Set an explicit retention/deletion policy for student accounts, answers, scores, and analytics.
 - [ ] Publish a student-data privacy notice and limit exports to authorized staff.
