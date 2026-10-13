@@ -12,9 +12,9 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.models.user import User
 
 from app.db.base import Base
+from app.models.user import User
 
 
 class OpportunityCategory(StrEnum):
