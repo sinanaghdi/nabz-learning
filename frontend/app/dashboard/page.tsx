@@ -14,6 +14,7 @@ import {
   type CourseAnalytics,
   type CourseStudent,
   type CreatedCourse,
+  type LeaderboardEntry,
   type Question,
   type StudentSummary,
   type Topic,
@@ -21,7 +22,7 @@ import {
   type User,
 } from "../../lib/api";
 
-type NavKey = "overview" | "courses" | "topics" | "questions" | "assessments" | "analytics" | "students";
+type NavKey = "overview" | "courses" | "topics" | "questions" | "assessments" | "analytics" | "students" | "leaderboard";
 type Flash = { kind: "success" | "error" | "info"; text: string };
 type ExamSession = {
   assessment: AssessmentDetail;
@@ -38,11 +39,13 @@ const teacherNav: { key: NavKey; title: string; icon: string }[] = [
   { key: "assessments", title: "آزمون‌ها", icon: "☷" },
   { key: "analytics", title: "تحلیل یادگیری", icon: "⌁" },
   { key: "students", title: "دانشجویان", icon: "♙" },
+  { key: "leaderboard", title: "رتبه‌بندی کلاس", icon: "♟" },
 ];
 const studentNav: { key: NavKey; title: string; icon: string }[] = [
   { key: "overview", title: "نمای کلی", icon: "◫" },
   { key: "courses", title: "درس‌های من", icon: "▤" },
   { key: "assessments", title: "آزمون‌ها", icon: "☷" },
+  { key: "leaderboard", title: "رتبه‌بندی کلاس", icon: "♟" },
 ];
 
 function dateText(value: string | null | undefined): string {
@@ -130,6 +133,7 @@ export default function DashboardPage() {
   const [overview, setOverview] = useState<CourseAnalytics | null>(null);
   const [topicAnalytics, setTopicAnalytics] = useState<TopicAnalytics[]>([]);
   const [studentSummaries, setStudentSummaries] = useState<StudentSummary[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [roster, setRoster] = useState<CourseStudent[]>([]);
   const [activeNav, setActiveNav] = useState<NavKey>("overview");
   const [flash, setFlash] = useState<Flash | null>(null);
@@ -230,6 +234,7 @@ export default function DashboardPage() {
     const coreRequests = [
       apiRequest<Topic[]>(base + "/topics", token),
       apiRequest<Assessment[]>(base + "/assessments", token),
+      apiRequest<LeaderboardEntry[]>(base + "/leaderboard", token),
     ];
     const additionalRequests = canManage
       ? [
@@ -249,12 +254,13 @@ export default function DashboardPage() {
         if (ignore) return;
         setTopics(data[0] as Topic[]);
         setAssessments(data[1] as Assessment[]);
+        setLeaderboard(data[2] as LeaderboardEntry[]);
         if (canManage) {
-          setQuestions(data[2] as Question[]);
-          setRoster(data[3] as CourseStudent[]);
-          setOverview(data[4] as CourseAnalytics);
-          setTopicAnalytics(data[5] as TopicAnalytics[]);
-          setStudentSummaries(data[6] as StudentSummary[]);
+          setQuestions(data[3] as Question[]);
+          setRoster(data[4] as CourseStudent[]);
+          setOverview(data[5] as CourseAnalytics);
+          setTopicAnalytics(data[6] as TopicAnalytics[]);
+          setStudentSummaries(data[7] as StudentSummary[]);
         } else {
           setQuestions([]);
           setRoster([]);
@@ -773,6 +779,48 @@ export default function DashboardPage() {
     );
   }
 
+  function renderLeaderboard() {
+    const scoredEntries = leaderboard.filter((entry) => entry.rank !== null);
+    return (
+      <section className="surface-card">
+        <div className="card-heading">
+          <div>
+            <span className="mini-label">انگیزه و پیشرفت</span>
+            <h3>رتبه‌بندی دانشجویان درس</h3>
+            <p>رتبه بر اساس میانگین نمرهٔ آزمون‌های نهایی‌شده محاسبه می‌شود.</p>
+          </div>
+          <span className="count-badge">{countText(scoredEntries.length)} نفر دارای نتیجه</span>
+        </div>
+        <p className="muted-copy leaderboard-note">
+          {canManage
+            ? "این رتبه‌بندی می‌تواند برای شناسایی دانشجویان مستعد مفید باشد؛ انتخاب دستیار آموزشی باید مشارکت، مسئولیت‌پذیری و توانایی توضیح مفاهیم را هم در نظر بگیرد."
+            : "برای حفظ حریم خصوصی، نام سایر دانشجوها در این نما نمایش داده نمی‌شود؛ فقط جایگاه و نتیجهٔ آن‌ها دیده می‌شود."}
+        </p>
+        {leaderboard.length ? (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead><tr><th>رتبه</th><th>دانشجو</th><th>آزمون‌های نهایی</th><th>میانگین نمره</th><th>بهترین نمره</th></tr></thead>
+              <tbody>
+                {leaderboard.map((entry, index) => (
+                  <tr key={entry.rank === null ? "unranked-" + index : "rank-" + entry.rank} className={entry.is_current_user ? "leaderboard-current" : undefined}>
+                    <td><span className={entry.rank !== null && entry.rank <= 3 ? "leaderboard-rank leaderboard-rank-top" : "leaderboard-rank"}>{entry.rank === null ? "—" : countText(entry.rank)}</span></td>
+                    <td><strong>{entry.display_name}</strong>{entry.is_current_user && <span className="badge badge-green leaderboard-you">جایگاه شما</span>}</td>
+                    <td>{countText(entry.submitted_attempts)}</td>
+                    <td><strong>{scoreText(entry.average_score_percent)}</strong></td>
+                    <td>{scoreText(entry.best_score_percent)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyInline text="هنوز دانشجویی در این درس عضو نشده است." />
+        )}
+        {!scoredEntries.length && leaderboard.length > 0 && <p className="form-hint">با ارسال اولین آزمون، رتبه‌بندی این درس شکل می‌گیرد.</p>}
+      </section>
+    );
+  }
+
   return (
     <main className="dashboard-shell">
       <aside className="app-sidebar">
@@ -810,6 +858,7 @@ export default function DashboardPage() {
           {activeNav === "assessments" && renderAssessments()}
           {activeNav === "analytics" && canManage && renderAnalytics()}
           {activeNav === "students" && canManage && renderStudents()}
+          {activeNav === "leaderboard" && renderLeaderboard()}
 
           <footer className="dashboard-footer"><span>نبض یادگیری <b>·</b> نسخهٔ زیرساختی</span><span>داده‌ها از سرور درس انتخاب‌شده دریافت می‌شوند.</span></footer>
         </div>
