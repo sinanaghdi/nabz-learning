@@ -15,6 +15,7 @@ import {
   type CourseStudent,
   type CreatedCourse,
   type LeaderboardEntry,
+  type Opportunity,
   type Question,
   type StudentSummary,
   type Topic,
@@ -22,7 +23,7 @@ import {
   type User,
 } from "../../lib/api";
 
-type NavKey = "overview" | "courses" | "topics" | "questions" | "assessments" | "analytics" | "students" | "leaderboard";
+type NavKey = "overview" | "courses" | "topics" | "questions" | "assessments" | "analytics" | "students" | "leaderboard" | "opportunities";
 type Flash = { kind: "success" | "error" | "info"; text: string };
 type ExamSession = {
   assessment: AssessmentDetail;
@@ -40,13 +41,26 @@ const teacherNav: { key: NavKey; title: string; icon: string }[] = [
   { key: "analytics", title: "تحلیل یادگیری", icon: "⌁" },
   { key: "students", title: "دانشجویان", icon: "♙" },
   { key: "leaderboard", title: "رتبه‌بندی کلاس", icon: "♟" },
+  { key: "opportunities", title: "فرصت‌ها", icon: "✦" },
 ];
 const studentNav: { key: NavKey; title: string; icon: string }[] = [
   { key: "overview", title: "نمای کلی", icon: "◫" },
   { key: "courses", title: "درس‌های من", icon: "▤" },
   { key: "assessments", title: "آزمون‌ها", icon: "☷" },
   { key: "leaderboard", title: "رتبه‌بندی کلاس", icon: "♟" },
+  { key: "opportunities", title: "فرصت‌ها", icon: "✦" },
 ];
+
+function opportunityCategoryText(category: Opportunity["category"]): string {
+  const labels: Record<Opportunity["category"], string> = {
+    job: "استخدام",
+    internship: "کارآموزی",
+    research: "پژوهش",
+    project: "پروژه",
+    paper: "مقاله و همکاری علمی",
+  };
+  return labels[category];
+}
 
 function dateText(value: string | null | undefined): string {
   if (!value) return "—";
@@ -134,10 +148,11 @@ export default function DashboardPage() {
   const [topicAnalytics, setTopicAnalytics] = useState<TopicAnalytics[]>([]);
   const [studentSummaries, setStudentSummaries] = useState<StudentSummary[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [roster, setRoster] = useState<CourseStudent[]>([]);
   const [activeNav, setActiveNav] = useState<NavKey>("overview");
   const [flash, setFlash] = useState<Flash | null>(null);
-  const [modal, setModal] = useState<"course" | "join" | "topic" | "question" | "assessment" | null>(null);
+  const [modal, setModal] = useState<"course" | "join" | "topic" | "question" | "assessment" | "opportunity" | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
   const [courseTerm, setCourseTerm] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
@@ -157,6 +172,8 @@ export default function DashboardPage() {
   const [assessmentAttempts, setAssessmentAttempts] = useState("1");
   const [assessmentQuestionIds, setAssessmentQuestionIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [opportunitySearch, setOpportunitySearch] = useState("");
+  const [opportunityCategory, setOpportunityCategory] = useState("all");
   const [busyAction, setBusyAction] = useState(false);
   const [exam, setExam] = useState<ExamSession | null>(null);
   const [lastResult, setLastResult] = useState<ResultNotice>(null);
@@ -191,6 +208,19 @@ export default function DashboardPage() {
       })
       .finally(() => setAuthLoading(false));
   }, [router]);
+
+  useEffect(() => {
+    if (!token || !user) return;
+    let ignore = false;
+    apiRequest<Opportunity[]>("/opportunities", token)
+      .then((items) => {
+        if (!ignore) setOpportunities(items);
+      })
+      .catch((caught: unknown) => {
+        if (!ignore) setFlash({ kind: "error", text: caught instanceof Error ? caught.message : "دریافت فرصت‌ها ناموفق بود." });
+      });
+    return () => { ignore = true; };
+  }, [token, user]);
 
   const loadCourses = useCallback(async (accessToken: string) => {
     const result = await apiRequest<Course[]>("/courses", accessToken);
@@ -447,6 +477,66 @@ export default function DashboardPage() {
     }
   }
 
+  async function createOpportunity(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token) return;
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const raw = (key: string) => String(values.get(key) || "").trim();
+    setBusyAction(true);
+    try {
+      const created = await apiRequest<Opportunity>("/opportunities", token, {
+        method: "POST",
+        body: JSON.stringify({
+          title: raw("opportunityTitle"),
+          category: raw("category"),
+          summary: raw("summary"),
+          description: raw("description"),
+          required_skills: raw("required_skills") || null,
+          application_url: raw("application_url") || null,
+          deadline: raw("deadline") || null,
+        }),
+      });
+      setOpportunities((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+      form.reset();
+      setModal(null);
+      setActiveNav("opportunities");
+      notify("success", canManage ? "فرصت به‌صورت پیش‌نویس ثبت شد؛ پس از بازبینی آن را منتشر کنید." : "پیشنهاد شما برای بازبینی مدرس ارسال شد.");
+    } catch (caught) {
+      notify("error", caught instanceof Error ? caught.message : "ثبت فرصت ناموفق بود.");
+    } finally {
+      setBusyAction(false);
+    }
+  }
+
+  async function publishOpportunity(item: Opportunity) {
+    if (!token) return;
+    setBusyAction(true);
+    try {
+      const published = await apiRequest<Opportunity>("/opportunities/" + item.id + "/publish", token, { method: "POST" });
+      setOpportunities((current) => current.map((candidate) => candidate.id === published.id ? published : candidate));
+      notify("success", "فرصت منتشر شد و برای کاربران قابل مشاهده است.");
+    } catch (caught) {
+      notify("error", caught instanceof Error ? caught.message : "انتشار فرصت ناموفق بود.");
+    } finally {
+      setBusyAction(false);
+    }
+  }
+
+  async function closeOpportunity(item: Opportunity) {
+    if (!token || !window.confirm("این فرصت بسته شود؟ پس از بستن، برای سایر کاربران نمایش داده نمی‌شود.")) return;
+    setBusyAction(true);
+    try {
+      const closed = await apiRequest<Opportunity>("/opportunities/" + item.id + "/close", token, { method: "POST" });
+      setOpportunities((current) => current.map((candidate) => candidate.id === closed.id ? closed : candidate));
+      notify("success", "وضعیت فرصت به بسته‌شده تغییر کرد.");
+    } catch (caught) {
+      notify("error", caught instanceof Error ? caught.message : "بستن فرصت ناموفق بود.");
+    } finally {
+      setBusyAction(false);
+    }
+  }
+
   async function startAssessment(assessment: Assessment) {
     if (!token || !courseId) return;
     setBusyAction(true);
@@ -545,6 +635,8 @@ export default function DashboardPage() {
   const pageTitle = exam ? "آزمون در حال انجام" : currentNav.title;
   const pageSubtitle = exam
     ? "پاسخ‌های شما به‌صورت جداگانه ذخیره می‌شوند."
+    : activeNav === "opportunities"
+      ? "فرصت‌های کار، پژوهش، پروژه و همکاری علمی را پیدا کنید یا برای بازبینی پیشنهاد بدهید."
     : selectedCourse
       ? selectedCourse.title + (selectedCourse.term ? " · " + selectedCourse.term : "")
       : "از اینجا مسیر یادگیری خود را پیگیری کنید.";
@@ -821,6 +913,68 @@ export default function DashboardPage() {
     );
   }
 
+  function renderOpportunities() {
+    const query = opportunitySearch.trim().toLocaleLowerCase();
+    const visible = opportunities.filter((item) => {
+      const matchesCategory = opportunityCategory === "all" || item.category === opportunityCategory;
+      const haystack = [item.title, item.summary, item.description, item.required_skills || ""].join(" ").toLocaleLowerCase();
+      return matchesCategory && (!query || haystack.includes(query));
+    });
+    return (
+      <>
+        <div className="content-toolbar content-toolbar-wrap">
+          <div>
+            <span className="mini-label">کار، پژوهش و همکاری</span>
+            <p className="muted-copy">فرصت‌های منتشرشده را ببینید. پیشنهادهای جدید ابتدا برای بازبینی ثبت می‌شوند.</p>
+          </div>
+          <button className="button button-primary" onClick={() => setModal("opportunity")}><span aria-hidden="true">＋</span>ثبت فرصت / پیشنهاد</button>
+        </div>
+        <div className="table-toolbar opportunity-toolbar">
+          <div className="search-box"><span aria-hidden="true">⌕</span><input aria-label="جست‌وجوی فرصت‌ها" placeholder="جست‌وجو در عنوان، توضیح یا مهارت…" value={opportunitySearch} onChange={(event) => setOpportunitySearch(event.target.value)} /></div>
+          <select className="text-input opportunity-filter" aria-label="دستهٔ فرصت" value={opportunityCategory} onChange={(event) => setOpportunityCategory(event.target.value)}>
+            <option value="all">همهٔ دسته‌ها</option>
+            <option value="job">استخدام</option>
+            <option value="internship">کارآموزی</option>
+            <option value="research">پژوهش</option>
+            <option value="project">پروژه</option>
+            <option value="paper">مقاله و همکاری علمی</option>
+          </select>
+        </div>
+        {visible.length ? (
+          <div className="opportunity-grid">
+            {visible.map((item) => (
+              <article className="opportunity-card" key={item.id}>
+                <div className="opportunity-card-top">
+                  <span className="opportunity-category">{opportunityCategoryText(item.category)}</span>
+                  <span className={"badge " + (item.status === "published" ? "badge-green" : item.status === "closed" ? "badge-gray" : "badge-amber")}>{statusText(item.status)}</span>
+                </div>
+                <h3>{item.title}</h3>
+                <p className="opportunity-summary">{item.summary}</p>
+                <p className="opportunity-description">{item.description}</p>
+                {item.required_skills && <div className="opportunity-skills"><strong>مهارت‌های موردنیاز</strong><span>{item.required_skills}</span></div>}
+                <div className="opportunity-meta">
+                  <span>مهلت: {item.deadline ? dateText(item.deadline) : "اعلام نشده"}</span>
+                  <span>{item.is_owner ? "ثبت‌شده توسط شما" : "فرصت گروه"}</span>
+                </div>
+                <div className="opportunity-actions">
+                  {item.status === "published" && item.application_url && <a className="button button-secondary" href={item.application_url} target="_blank" rel="noreferrer">جزئیات / درخواست ↗</a>}
+                  {canManage && item.status === "draft" && <button className="button button-primary" onClick={() => void publishOpportunity(item)} disabled={busyAction}>انتشار</button>}
+                  {(canManage || item.is_owner) && item.status !== "closed" && <button className="button button-secondary" onClick={() => void closeOpportunity(item)} disabled={busyAction}>بستن فرصت</button>}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title={opportunities.length ? "فرصتی مطابق فیلتر پیدا نشد" : "هنوز فرصتی ثبت نشده است"}
+            description={opportunities.length ? "عبارت یا دستهٔ دیگری را امتحان کنید." : "اولین پیشنهاد را ثبت کنید؛ فرصت پس از بازبینی منتشر خواهد شد."}
+            action={<button className="button button-primary" onClick={() => setModal("opportunity")}>ثبت فرصت / پیشنهاد</button>}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <main className="dashboard-shell">
       <aside className="app-sidebar">
@@ -859,6 +1013,7 @@ export default function DashboardPage() {
           {activeNav === "analytics" && canManage && renderAnalytics()}
           {activeNav === "students" && canManage && renderStudents()}
           {activeNav === "leaderboard" && renderLeaderboard()}
+          {activeNav === "opportunities" && renderOpportunities()}
 
           <footer className="dashboard-footer"><span>نبض یادگیری <b>·</b> نسخهٔ زیرساختی</span><span>داده‌ها از سرور درس انتخاب‌شده دریافت می‌شوند.</span></footer>
         </div>
@@ -866,7 +1021,7 @@ export default function DashboardPage() {
 
       {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(null); }}>
         <section className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-          <div className="dialog-heading"><div><span className="mini-label">نبض یادگیری</span><h2 id="dialog-title">{modal === "course" ? "ایجاد درس جدید" : modal === "join" ? "عضویت در درس" : modal === "topic" ? "افزودن مبحث" : modal === "question" ? "ساخت سؤال" : "ساخت آزمون"}</h2><p>{modal === "course" ? "اطلاعات پایهٔ درس را وارد کنید." : modal === "join" ? "کد عضویت را از مدرس بگیرید." : modal === "topic" ? "مبحث‌ها برای دسته‌بندی سؤال‌ها و تحلیل نتایج استفاده می‌شوند." : modal === "question" ? "سؤال جدید با دو گزینه ساخته و منتشر می‌شود." : "از سؤال‌های منتشرشدهٔ این درس انتخاب کنید."}</p></div><button className="icon-button" onClick={() => setModal(null)} aria-label="بستن پنجره">×</button></div>
+          <div className="dialog-heading"><div><span className="mini-label">نبض یادگیری</span><h2 id="dialog-title">{modal === "course" ? "ایجاد درس جدید" : modal === "join" ? "عضویت در درس" : modal === "topic" ? "افزودن مبحث" : modal === "question" ? "ساخت سؤال" : modal === "opportunity" ? "ثبت فرصت / پیشنهاد" : "ساخت آزمون"}</h2><p>{modal === "course" ? "اطلاعات پایهٔ درس را وارد کنید." : modal === "join" ? "کد عضویت را از مدرس بگیرید." : modal === "topic" ? "مبحث‌ها برای دسته‌بندی سؤال‌ها و تحلیل نتایج استفاده می‌شوند." : modal === "question" ? "سؤال جدید با دو گزینه ساخته می‌شود." : modal === "opportunity" ? "فرصت برای بازبینی ثبت می‌شود؛ انتشار عمومی با نقش مدرس یا مدیر انجام می‌شود." : "از سؤال‌های منتشرشدهٔ این درس انتخاب کنید."}</p></div><button className="icon-button" onClick={() => setModal(null)} aria-label="بستن پنجره">×</button></div>
           {modal === "course" && <form className="dialog-form" onSubmit={createCourse}>
             <label className="field-label" htmlFor="course-title">عنوان درس</label><input id="course-title" className="text-input" value={courseTitle} onChange={(event) => setCourseTitle(event.target.value)} minLength={2} maxLength={160} required placeholder="مثلاً شبکه‌های کامپیوتری" />
             <label className="field-label" htmlFor="course-term">نیم‌سال / دوره <span>اختیاری</span></label><input id="course-term" className="text-input" value={courseTerm} onChange={(event) => setCourseTerm(event.target.value)} maxLength={80} placeholder="مثلاً پاییز ۱۴۰۵" />
@@ -903,6 +1058,26 @@ export default function DashboardPage() {
             <div className="question-select-list">{publishedQuestions.map((question) => <label className="question-select-item" key={question.id}><input type="checkbox" checked={assessmentQuestionIds.includes(question.id)} onChange={(event) => setAssessmentQuestionIds((current) => event.target.checked ? [...current, question.id] : current.filter((id) => id !== question.id))} /><span><strong>{question.prompt}</strong><small>{topics.find((topic) => topic.id === question.topic_id)?.title || "بدون مبحث"}</small></span></label>)}</div>
             {!publishedQuestions.length && <p className="form-hint">برای ساخت آزمون ابتدا سؤال منتشرشده اضافه کنید.</p>}
             <div className="dialog-actions"><button className="button button-secondary" type="button" onClick={() => setModal(null)}>انصراف</button><button className="button button-primary" type="submit" disabled={busyAction || !publishedQuestions.length}>{busyAction ? "در حال ساخت…" : "ساخت پیش‌نویس آزمون"}</button></div>
+          </form>}
+          {modal === "opportunity" && <form className="dialog-form" onSubmit={createOpportunity}>
+            <label className="field-label" htmlFor="opportunity-title">عنوان فرصت</label>
+            <input id="opportunity-title" name="opportunityTitle" className="text-input" minLength={2} maxLength={180} required placeholder="مثلاً پروژهٔ پژوهشی یادگیری تطبیقی" />
+            <label className="field-label" htmlFor="opportunity-category">دستهٔ فرصت</label>
+            <select id="opportunity-category" name="category" className="text-input" defaultValue="project">
+              <option value="project">پروژه</option><option value="research">پژوهش</option><option value="job">استخدام</option><option value="internship">کارآموزی</option><option value="paper">مقاله و همکاری علمی</option>
+            </select>
+            <label className="field-label" htmlFor="opportunity-summary">خلاصهٔ کوتاه</label>
+            <textarea id="opportunity-summary" name="summary" className="text-input text-area" minLength={10} maxLength={500} required placeholder="در چند جمله بگویید چه فرصتی ارائه می‌شود…" />
+            <label className="field-label" htmlFor="opportunity-description">توضیحات کامل</label>
+            <textarea id="opportunity-description" name="description" className="text-input text-area opportunity-long-text" minLength={20} maxLength={10000} required placeholder="شرح کار، مسئولیت‌ها، خروجی مورد انتظار و شیوهٔ همکاری…" />
+            <label className="field-label" htmlFor="opportunity-skills">مهارت‌های موردنیاز <span>اختیاری</span></label>
+            <textarea id="opportunity-skills" name="required_skills" className="text-input text-area" maxLength={3000} placeholder="مثلاً Python، تحلیل داده، مقاله‌نویسی…" />
+            <label className="field-label" htmlFor="opportunity-url">لینک جزئیات یا درخواست <span>اختیاری</span></label>
+            <input id="opportunity-url" name="application_url" className="text-input" type="url" maxLength={2048} placeholder="https://…" />
+            <label className="field-label" htmlFor="opportunity-deadline">مهلت درخواست <span>اختیاری</span></label>
+            <input id="opportunity-deadline" name="deadline" className="text-input" type="date" />
+            <p className="form-hint">پیشنهاد دانشجو برای بازبینی مدرس ثبت می‌شود؛ هر فرصت قبل از انتشار عمومی باید تأیید شود.</p>
+            <div className="dialog-actions"><button className="button button-secondary" type="button" onClick={() => setModal(null)}>انصراف</button><button className="button button-primary" type="submit" disabled={busyAction}>{busyAction ? "در حال ثبت…" : "ثبت برای بازبینی"}</button></div>
           </form>}
         </section>
       </div>}
