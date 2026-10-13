@@ -4,6 +4,7 @@ from app.api.assessments import router as assessments_router
 from app.api.auth import router as auth_router
 from app.api.courses import router as courses_router
 from app.api.leaderboard import router as leaderboard_router
+from app.api.opportunities import router as opportunities_router
 from app.api.questions import router as questions_router
 
 api_router = APIRouter()
