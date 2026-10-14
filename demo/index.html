@@ -48,9 +48,14 @@
 .leader-rank-top{background:var(--gold2);border-color:#ecd6ad;color:#996b28}
 @media(max-width:850px){.opportunity-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.op-filterbar{align-items:stretch;flex-direction:column}.op-filterbar .search{min-width:0}.opportunity-select{width:100%}}
+::selection{background:#d9eee1;color:#17392b}
+.skip-link{position:fixed;z-index:100;top:10px;right:10px;transform:translateY(-160%);padding:10px 14px;border-radius:10px;background:var(--green);color:#fff;font-size:12px;font-weight:700;box-shadow:var(--shadow)}
+.skip-link:focus{transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#view">رفتن به محتوای اصلی</a>
 <div class="shell">
   <aside class="sidebar" id="sidebar">
     <div class="brand"><div class="brand-mark">ن</div><div><strong>نبض یادگیری</strong><small>همراه مسیر یادگیری</small></div></div>
@@ -160,6 +165,7 @@ document.addEventListener("change",event=>{if(event.target.id==="opportunityCate
 document.addEventListener("submit",event=>{if(event.target.id==="demoForm"){event.preventDefault();formSubmit(event.target)}});
 document.addEventListener("click",event=>{if(event.target.id==="backdrop")closeModal()});
 document.getElementById("mobileMenu").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
+document.addEventListener("keydown",event=>{if(event.key==="Escape"){if(state.modal)closeModal();document.getElementById("sidebar").classList.remove("open")}});
 render();
 </script>
 </body>
